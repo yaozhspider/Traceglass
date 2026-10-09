@@ -1,0 +1,4 @@
+interface:
+  display_name: Crypto & Obfuscation Analysis
+  short_description: Identify and validate cryptographic and obfuscation logic in binaries.
+  default_prompt: Analyze suspected cryptography or obfuscation using evidence scoring and a reproducible semantic model.

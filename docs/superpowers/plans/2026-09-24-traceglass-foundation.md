@@ -1,3 +1,5 @@
+> Superseded on 2026-09-28 by the native AgentScope correction. Kept only as design history. See `../plans/2026-09-28-native-agentscope.md` and the current README.
+
 # Traceglass Foundation Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task.

@@ -1,65 +1,606 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, Bot, FolderOpen, PanelRight, RefreshCw, Search, ShieldCheck } from "lucide-react";
-import { ExecutionTimeline } from "../execution/ExecutionTimeline";
-import { readTrace } from "../execution/traceApi";
-import type { TraceEvent } from "../execution/types";
+import { useEffect, useRef, useState } from 'react';
+import {
+  ArrowDown,
+  Bot,
+  FileText,
+  FolderOpen,
+  GitBranch,
+  Info,
+  Menu,
+  Pause,
+  RefreshCw,
+  Send,
+  Upload,
+  X,
+} from 'lucide-react';
+import { SessionTimeline } from '../execution/SessionTimeline';
+import { PermissionPicker } from '../execution/PermissionControl';
+import { canPauseExecution } from '../execution/controls';
+import { RecordInspector } from '../execution/RecordInspector';
+import { statusLabel } from '../execution/timeline';
+import { WorkspaceHome } from './WorkspaceHome';
+import { WorkspaceSidebar, SamplePicker } from './WorkspaceSidebar';
+import { WorkspaceFiles } from './WorkspaceFiles';
+import { useWorkbench } from './useWorkbench';
+import { WorkspaceFileContext } from './WorkspaceFileContext';
+import './workspace.css';
+import './workbench.css';
 
-type Props = { runId: string };
-
-export function WorkbenchShell({ runId }: Props) {
-  const [events, setEvents] = useState<TraceEvent[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [selected, setSelected] = useState<TraceEvent | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    try {
-      const page = await readTrace(runId, cursor);
-      setEvents((current) => {
-        const seen = new Set(current.map((event) => event.event_id));
-        return [...current, ...page.events.filter((event) => !seen.has(event.event_id))];
-      });
-      setCursor(page.next_cursor ?? cursor);
-      setError(null);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "无法读取执行轨迹");
-    }
-  }, [cursor, runId]);
-
-  useEffect(() => { void refresh(); }, [runId]);
+export function WorkbenchShell() {
+  const workbench = useWorkbench();
+  const { config, detail, active, route, selectedSample } = workbench;
+  const [inspected, setInspected] = useState<unknown>(null);
+  const [requestedFile, setRequestedFile] = useState<{
+    path: string;
+    revision: number;
+  } | null>(null);
+  const [panel, setPanel] = useState<'files' | 'message' | null>(null);
+  const [sidebar, setSidebar] = useState(false);
+  const [atBottom, setAtBottom] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const follow = useRef(true);
   useEffect(() => {
-    const timer = window.setInterval(() => void refresh(), 1500);
-    return () => window.clearInterval(timer);
-  }, [refresh]);
+    setInspected(null);
+    setPanel(null);
+    setRequestedFile(null);
+    setSidebar(false);
+    follow.current = !!route.session;
+    const content = contentRef.current,
+      scroller = scrollRef.current;
+    if (!content || !scroller) return;
+    const observer = new ResizeObserver(() => {
+      if (follow.current) scroller.scrollTop = scroller.scrollHeight;
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [route.workspace, route.session]);
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPanel(null);
+        setSidebar(false);
+      }
+    };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, []);
+  const inspect = (value: unknown) => {
+    setInspected(value);
+    setPanel('message');
+  };
 
-  const status = useMemo(() => [...events].reverse().find((event) => event.type === "run.status_changed")?.content ?? "等待执行", [events]);
+  if (!route.workspace && !route.session)
+    return (
+      <WorkspaceHome
+        workspaces={workbench.workspaces}
+        loading={workbench.loading}
+        error={workbench.error}
+        onOpenWorkspace={workbench.openWorkspace}
+        onCreate={workbench.createWorkspace}
+        onRetry={() => void workbench.refresh()}
+      />
+    );
+  const canSend = !!(
+    config?.model_configured || active?.session.config.chat_model_config
+  );
+  const running =
+    active?.status === 'running' || active?.status === 'preparing';
+  const sendingDisabled =
+    !canSend ||
+    !detail ||
+    workbench.workspaceLoading ||
+    workbench.busy ||
+    workbench.permissionSaving ||
+    workbench.pausing ||
+    running ||
+    active?.status === 'awaiting_permission' ||
+    (!route.session && !!route.sample && !selectedSample);
+  const members = active?.team?.members ?? [];
+  const canPause = canPauseExecution(active?.status,
+    members.map((m) => m.session_id ? workbench.runtime?.members?.[m.session_id] : undefined));
+  const childrenRunning = members.some(
+    (m) =>
+      m.session_id &&
+      ['running', 'preparing'].includes(
+        workbench.runtime?.members?.[m.session_id] ?? '',
+      ),
+  );
+  const status = active
+    ? active.status === 'idle' && childrenRunning
+      ? '子 Agent 执行中'
+      : statusLabel(active.status)
+    : '准备就绪';
+  const latest = () => {
+    follow.current = true;
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+    setAtBottom(true);
+  };
+
   return (
-    <div className="app-shell">
-      <aside className="nav-rail">
-        <div className="brand-mark">TG</div>
-        <button className="nav-button active"><Activity size={18} /><span>工作台</span></button>
-        <button className="nav-button"><FolderOpen size={18} /><span>样本库</span></button>
-        <button className="nav-button"><ShieldCheck size={18} /><span>证据</span></button>
-        <div className="nav-spacer" />
-        <button className="nav-button"><Bot size={18} /><span>Agent</span></button>
-      </aside>
-      <aside className="task-sidebar">
-        <div className="sidebar-heading"><span>分析任务</span><button className="icon-button" aria-label="搜索"><Search size={16} /></button></div>
-        <div className="task-search">持久化机制分析</div>
-        <div className="task-list-item selected"><span className="status-pulse" /><div><strong>样本画像 · run-{runId.slice(-4)}</strong><small>{status}</small></div></div>
-        <div className="task-list-item"><span className="status-dot" /><div><strong>网络行为核查</strong><small>昨天 · 已完成</small></div></div>
-        <div className="task-list-item"><span className="status-dot" /><div><strong>家族归因复核</strong><small>周一 · 待审阅</small></div></div>
-      </aside>
-      <main className="workspace-main">
-        <header className="workspace-header"><div><div className="eyebrow">WORKSPACE / REVERSE ANALYSIS</div><h1>持久化机制分析</h1></div><div className="header-actions"><span className="live-status"><span className="status-pulse" />{status}</span><button className="secondary-button" onClick={() => void refresh()}><RefreshCw size={15} />刷新</button></div></header>
-        <section className="objective-card"><div className="assistant-avatar"><Bot size={18} /></div><div><strong>主 Agent</strong><p>我会先建立样本画像，再按计划核查静态证据、动态行为和结论一致性。每一步都可以展开查看输入、工具结果、证据和产物。</p></div></section>
-        {error && <div className="error-banner">{error} · 请确认 API 已启动</div>}
-        <div className="timeline-heading"><div><h2>执行轨迹</h2><span>{events.length} 个可审计事件 · cursor {cursor ?? "—"}</span></div><button className="secondary-button"><PanelRight size={15} />轨迹视图</button></div>
-        <ExecutionTimeline events={events} onSelect={setSelected} />
-      </main>
-      <aside className="inspector-panel">
-        {selected ? <><div className="inspector-heading"><span>事件详情</span><button className="icon-button" onClick={() => setSelected(null)}>×</button></div><div className="inspector-type">{selected.type}</div><h3>{selected.title ?? "未命名事件"}</h3><p>{selected.content ?? "此事件没有文字说明。"}</p><dl><dt>事件 ID</dt><dd>{selected.event_id}</dd><dt>Sequence</dt><dd>#{selected.sequence}</dd>{selected.agent_run_id && <><dt>Agent Run</dt><dd>{selected.agent_run_id}</dd></>}</dl><pre className="inspector-json">{JSON.stringify(selected, null, 2)}</pre></> : <div className="inspector-empty"><PanelRight size={24} /><strong>证据与产物检查器</strong><p>点击轨迹中的事件、证据或产物，在这里查看完整上下文。</p></div>}
-      </aside>
-    </div>
+    <WorkspaceFileContext.Provider
+      value={(path) => {
+        setRequestedFile({ path, revision: Date.now() });
+        setPanel('files');
+      }}
+    >
+      <div
+        className={`app-shell native-shell product-workbench ${sidebar ? 'sidebar-open' : ''} ${panel ? 'panel-open' : ''}`}
+      >
+        <nav className="nav-rail" aria-label="主导航">
+          <button
+            className="brand-mark"
+            title="所有工作区"
+            onClick={() => workbench.openWorkspace(null)}
+          >
+            溯
+          </button>
+          <button
+            className="nav-button active"
+            aria-label="所有工作区"
+            onClick={() => workbench.openWorkspace(null)}
+          >
+            <FolderOpen size={19} />
+          </button>
+          <span className="rail-wordmark">TRACEGLASS</span>
+        </nav>
+        {sidebar && (
+          <button
+            className="sidebar-scrim"
+            aria-label="关闭工作区导航"
+            onClick={() => setSidebar(false)}
+          />
+        )}
+        {config && detail ? (
+          <WorkspaceSidebar
+            user={config.user_id}
+            detail={detail}
+            workspaces={workbench.workspaces}
+            sessionId={route.session ?? undefined}
+            selectedSample={selectedSample}
+            onSelectSample={(sample) =>
+              workbench.selectSample(sample?.sample_id ?? null)
+            }
+            onUploaded={(sample) =>
+              workbench.sampleUploaded(sample, detail.workspace.workspace_id)
+            }
+            onOpenWorkspace={workbench.openWorkspace}
+            onHome={() => workbench.openWorkspace(null)}
+            onOpenSession={(task) => workbench.openSession(task.session_id)}
+            onNewAnalysis={workbench.newAnalysis}
+          />
+        ) : (
+          <aside className="workspace-sidebar">
+            <button
+              className="secondary-button"
+              onClick={() => workbench.openWorkspace(null)}
+            >
+              所有工作区
+            </button>
+            <p className="muted">
+              {workbench.workspaceLoading || workbench.loading
+                ? '正在读取工作区…'
+                : '工作区暂时不可用'}
+            </p>
+          </aside>
+        )}
+        <main className="workspace-main">
+          <header className="workspace-header">
+            <button
+              className="icon-button sidebar-toggle"
+              aria-label="展开工作区导航"
+              onClick={() => setSidebar(!sidebar)}
+            >
+              <Menu size={19} />
+            </button>
+            <div className="workspace-title">
+              <div className="eyebrow">
+                {detail?.workspace.name ?? 'TRACEGLASS'}
+              </div>
+              <h1>{active?.session.config.name ?? '新建分析'}</h1>
+            </div>
+            <div className="header-actions">
+              <span className={`live-status ${active?.status ?? ''}`}>
+                <i />
+                {status}
+              </span>
+              <button
+                className="icon-button"
+                aria-label="刷新工作区"
+                onClick={() => void workbench.refresh()}
+              >
+                <RefreshCw size={16} />
+              </button>
+              <button
+                className="secondary-button file-toggle"
+                aria-expanded={panel === 'files'}
+                onClick={() => setPanel(panel === 'files' ? null : 'files')}
+              >
+                <FolderOpen size={15} />
+                文件
+              </button>
+            </div>
+          </header>
+          <div className="workspace-context">
+            {selectedSample ? (
+              <span
+                className="sample-identity"
+                title={`${selectedSample.name}\nSHA-256 ${selectedSample.sha256}`}
+              >
+                <FileText size={13} />
+                <strong>{selectedSample.name}</strong>
+                <code>{selectedSample.sha256.slice(0, 12)}</code>
+              </span>
+            ) : (
+              <span className="context-label">分析工作台</span>
+            )}
+            {config?.integrations && (
+              <details className="integration-summary">
+                <summary>
+                  <Info size={13} />
+                  {config.model_config?.model ?? '模型未配置'}
+                </summary>
+                <div>
+                  <p>
+                    {config.integrations.workspace_backend === 'docker'
+                      ? 'Docker 分析环境'
+                      : '本地工作区'}{' '}
+                    · {config.integrations.skills.length} 个 Skill
+                  </p>
+                  <p>
+                    MCP：
+                    {config.integrations.mcp_servers.join('、') || '未配置'}
+                  </p>
+                  {detail?.workspace.is_legacy && (
+                    <p>已有会话沿用原文件目录。</p>
+                  )}
+                  <p>Skills：{config.integrations.skills.join('、')}</p>
+                </div>
+              </details>
+            )}
+          </div>
+          <div
+            className="conversation-scroll"
+            onClickCapture={(e) => {
+              if ((e.target as HTMLElement).closest('summary'))
+                follow.current = false;
+            }}
+            ref={scrollRef}
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              const bottom =
+                el.scrollHeight - el.scrollTop - el.clientHeight < 70;
+              follow.current = bottom;
+              setAtBottom(bottom);
+            }}
+          >
+            <div className="conversation-content" ref={contentRef}>
+              {workbench.error && (
+                <div className="error-banner" role="alert">
+                  {workbench.error}
+                  <button
+                    className="icon-button"
+                    onClick={() => void workbench.refresh()}
+                  >
+                    重试
+                  </button>
+                </div>
+              )}
+              {!canSend && config && (
+                <div className="error-banner">
+                  尚未配置模型。你可以先上传和查看文件。
+                </div>
+              )}
+              {workbench.runtime?.integrations
+                .filter((item) => item.status === 'unavailable')
+                .map((item) => (
+                  <details key={item.name} className="integration-warning">
+                    <summary>{item.name} 暂不可用</summary>
+                    <p>{item.message}</p>
+                  </details>
+                ))}
+              {active?.status === 'preparing' && (
+                <p className="workspace-preparing" role="status">
+                  正在准备分析环境与工具…
+                </p>
+              )}
+              {config && active ? (
+                <SessionTimeline
+                  key={active.session.id}
+                  user={config.user_id}
+                  session={active.session}
+                  label="主 Agent"
+                  onInspect={inspect}
+                  running={running}
+                  pendingInput={workbench.pendingInput?.text}
+                  pendingInputId={workbench.pendingInput?.id}
+                  onInputRecorded={() =>
+                    workbench.inputRecorded(active.session.id)
+                  }
+                  initialTasks={active.session.state.tasks_context?.tasks ?? []}
+                  tasksSettledAt={active.tasksSettledAt}
+                  team={{
+                    members,
+                    statuses: workbench.runtime?.members,
+                    limit: config.orchestration?.max_subagents ?? 8,
+                  }}
+                />
+              ) : (
+                <section className="analysis-welcome">
+                  <div className="welcome-symbol">溯</div>
+                  <div className="eyebrow">TRACEGLASS · 溯镜</div>
+                  <h2>
+                    每个结论，
+                    <br />
+                    都有迹可循。
+                  </h2>
+                  <p>
+                    从样本出发，拆解问题、协作分析、复核证据。
+                    <br />
+                    分析过程和每位 Agent 的工作都在这里。
+                  </p>
+                  <div className="analysis-guides">
+                    <button
+                      onClick={() =>
+                        workbench.setPrompt(
+                          '识别选中样本的文件类型、架构与基本信息，记录哈希和可复核证据。',
+                        )
+                      }
+                    >
+                      <FileText size={18} />
+                      <span>
+                        样本速览<small>类型、架构、基础线索</small>
+                      </span>
+                    </button>
+                    <button
+                      onClick={() =>
+                        workbench.setPrompt(
+                          '帮我深入逆向分析选中样本并给出详细报告，说明关键函数、行为、证据和不确定性。',
+                        )
+                      }
+                    >
+                      <Bot size={18} />
+                      <span>
+                        深入分析<small>任务分解、专家协作、证据复核</small>
+                      </span>
+                    </button>
+                  </div>
+                  {!!detail?.tasks.length && (
+                    <div className="resume-analysis">
+                      <span>继续已有分析</span>
+                      {detail.tasks.slice(0, 3).map((task) => (
+                        <button
+                          key={task.session_id}
+                          onClick={() => workbench.openSession(task.session_id)}
+                        >
+                          {task.name}
+                          <span>打开 →</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+            </div>
+          </div>
+          <div className="composer-dock">
+            {active?.status === 'awaiting_permission' && (
+              <button
+                className="permission-jump"
+                onClick={() =>
+                  document
+                    .getElementById(`permission-${active.session.id}`)
+                    ?.scrollIntoView({ block: 'start' })
+                }
+              >
+                主 Agent 等待授权 · 查看待确认工具
+              </button>
+            )}
+            {members.some(
+              (m) =>
+                m.session_id &&
+                workbench.runtime?.members?.[m.session_id] ===
+                  'awaiting_permission',
+            ) && (
+              <button
+                className="permission-jump"
+                onClick={() =>
+                  document
+                    .getElementById(`team-${active?.session.id}`)
+                    ?.scrollIntoView({ block: 'start' })
+                }
+              >
+                子 Agent 等待授权 · 查看协作分工
+              </button>
+            )}
+            {!atBottom && (
+              <button className="jump-latest" onClick={latest}>
+                <ArrowDown size={14} />
+                最新进展
+              </button>
+            )}
+            <form
+              className="composer"
+              onSubmit={(event) => {
+                event.preventDefault();
+                latest();
+                void workbench.submit();
+              }}
+            >
+              {workbench.pendingInput && !running && (
+                <button
+                  className="secondary-button pending-retry"
+                  type="button"
+                  onClick={() =>
+                    workbench.setPrompt(workbench.pendingInput!.text)
+                  }
+                >
+                  重新填写已提交的问题
+                </button>
+              )}
+              <label className="sr-only" htmlFor="task-input">
+                {route.session ? '继续分析' : '分析目标'}
+              </label>
+              <textarea
+                id="task-input"
+                value={workbench.prompt}
+                onChange={(event) => workbench.setPrompt(event.target.value)}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === 'Enter' &&
+                    (event.metaKey || event.ctrlKey) &&
+                    !event.nativeEvent.isComposing
+                  ) {
+                    event.preventDefault();
+                    if (!sendingDisabled) {
+                      latest();
+                      void workbench.submit();
+                    }
+                  }
+                }}
+                placeholder={
+                  running
+                    ? 'Agent 正在分析，可以先写下下一步问题…'
+                    : selectedSample
+                      ? '描述你想确认的问题，或要求一份完整分析报告…'
+                      : '选择或上传样本，描述你的分析目标…'
+                }
+                rows={2}
+              />
+              <div className="composer-permissions">
+                <PermissionPicker
+                  mode={workbench.permissionMode}
+                  onChange={(mode) => void workbench.changePermission(mode)}
+                  status={active?.status}
+                  disabled={workbench.busy || workbench.workspaceLoading}
+                  saving={workbench.permissionSaving}
+                />
+                {active ? (
+                  <button type="button" className="pause-all" disabled={!canPause || workbench.pausing}
+                    onClick={() => void workbench.pauseAll()}
+                    title="暂停主 Agent、子 Agent 及其后台工具；保留已有记录，之后可继续执行。">
+                    <Pause size={13} />{workbench.pausing ? '正在暂停…' : '暂停全部'}
+                  </button>
+                ) : <span className="permission-scope" title="新建子 Agent 继承主 Agent 的权限；已有成员可在展开面板中单独切换。">
+                  主 Agent 与新建子 Agent
+                </span>}
+              </div>
+              <div className="composer-footer">
+                <div>
+                  <button
+                    className="icon-button"
+                    type="button"
+                    aria-label="上传分析样本"
+                    title="上传分析样本"
+                    disabled={!detail || running || workbench.busy}
+                    onClick={() => {
+                      document
+                        .getElementById('workspace-sample-upload')
+                        ?.click();
+                      setSidebar(true);
+                    }}
+                  >
+                    <Upload size={15} />
+                  </button>
+                  {detail && (
+                    <SamplePicker
+                      samples={detail.samples}
+                      selectedSample={selectedSample}
+                      onSelectSample={(sample) =>
+                        workbench.selectSample(sample?.sample_id ?? null)
+                      }
+                      disabled={workbench.busy || running}
+                    />
+                  )}
+                  {active ? (
+                    <button
+                      className="composer-team"
+                      type="button"
+                      disabled={!members.length}
+                      onClick={() =>
+                        document
+                          .getElementById(`team-${active.session.id}`)
+                          ?.scrollIntoView({ block: 'start' })
+                      }
+                    >
+                      <GitBranch size={14} />
+                      {members.length
+                        ? `协作 ${members.length} / ${config?.orchestration?.max_subagents ?? 8}`
+                        : '尚未委派'}
+                    </button>
+                  ) : (
+                    <span className="composer-hint">
+                      主 Agent 规划 · 最多{' '}
+                      {config?.orchestration?.max_subagents ?? 8} 位专家
+                    </span>
+                  )}
+                </div>
+                <button
+                  className="primary-button"
+                  disabled={sendingDisabled || !workbench.prompt.trim()}
+                  type="submit"
+                  title="⌘ / Ctrl + Enter"
+                >
+                  <Send size={15} />
+                  {workbench.busy ? '提交中' : '发送'}
+                </button>
+              </div>
+            </form>
+            <div className="composer-note">
+              {config?.orchestration?.max_iters ? `默认每轮最多 ${config.orchestration.max_iters} 步 · ` : ''}
+              结论需要证据支持
+            </div>
+          </div>
+        </main>
+        {panel && (
+          <aside
+            className="workspace-file-panel"
+            aria-label="工作区文件与消息详情"
+          >
+            <div
+              className="workspace-panel-tabs"
+              role="tablist"
+              aria-label="查看内容"
+            >
+              <button
+                role="tab"
+                aria-selected={panel === 'files'}
+                onClick={() => setPanel('files')}
+              >
+                <FolderOpen size={15} />
+                工作区文件
+              </button>
+              <button
+                role="tab"
+                aria-selected={panel === 'message'}
+                onClick={() => setPanel('message')}
+              >
+                <Info size={15} />
+                记录详情
+              </button>
+              <button
+                className="icon-button panel-close"
+                aria-label="关闭侧面板"
+                onClick={() => setPanel(null)}
+              >
+                <X size={17} />
+              </button>
+            </div>
+            {panel === 'files' && config && route.workspace ? (
+              <WorkspaceFiles
+                key={route.workspace}
+                user={config.user_id}
+                workspaceId={route.workspace}
+                requestedFile={requestedFile}
+                refreshKey={`${active?.status ?? 'draft'}:${detail?.samples.length ?? 0}`}
+              />
+            ) : (
+              <RecordInspector value={inspected} />
+            )}
+          </aside>
+        )}
+      </div>
+    </WorkspaceFileContext.Provider>
   );
 }

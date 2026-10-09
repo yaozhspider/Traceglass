@@ -1,3 +1,5 @@
+> Superseded on 2026-09-28 by the native AgentScope correction. Kept only as design history. See `../plans/2026-09-28-native-agentscope.md` and the current README.
+
 # Traceglass Agent and Execution Design
 
 ## Goal

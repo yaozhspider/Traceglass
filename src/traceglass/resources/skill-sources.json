@@ -1,0 +1,108 @@
+{
+  "imported_on": "2026-10-08",
+  "packages": [
+    {
+      "package": "reverse-engineering",
+      "source": "/Users/yaozh/llms/reverse/skills/reverse-engineering",
+      "files": {
+        "SKILL.md": "2cb64b23bbf3651b082560cb85789d926714c4799b1eaa7580ffc98cef30a4f5",
+        "anti-analysis.md": "373adf2216047ab9c25fbfa4ac807ec3883e7e211e1c8b5ccce3974439098f81",
+        "awesome-re-resources.md": "58cc6e32781cc9ea8f8e499bf2dc78a4d91b1fd41e784dad0424dc4f2ace4826",
+        "crypto-decode-tools.md": "e03aeade2b81f2afb2f0d2141f3c693f7f0acaf79c7f9e78180de37a9114ed6f",
+        "dsl-vm-reverse/SKILL.md": "57d1d92f42eae82a4255616dcfe136c3df74440cbc3a4a8a51083af379bc3565",
+        "elf-analysis.md": "71ce8375e31194215b11c52ce7736669d2487fd44d2e1a2608e21a6ded14acc4",
+        "field-notes.md": "5b8babff28cd632732923812068a6583dd789a581d82084b39c4e03fc8ec5017",
+        "go-reverse.md": "75e9060c4f6dd341c7c5f2f33a5c1fbccb21cd2ab2265833ebc5368856631041",
+        "kernel-driver-reverse.md": "566f681ebd518434123cba917667802e5cf75cc23289fe5418ab2e0766cdfe48",
+        "languages-compiled.md": "26aecb4f27d050bb99fc646858df80c3773cf6e0bf42fa64a1ed18f911b1c7fb",
+        "languages-platforms.md": "67b6d6bb199c0eb69488ffb5f1b514c7103cb0656804cf599f3978439bf9bbf7",
+        "languages.md": "ba8e9c8f8df9351e9e85243574b8e2b0724e19e63d0f796294b0eef166f78b6d",
+        "patterns-ctf-2.md": "8d3b7d1fde1cd0917641877f2d39c6c2c9621859a4da426c39ebe6be2ec240ad",
+        "patterns-ctf-3.md": "76cfa06f01a4e8ed5cc91d1942c59aa65e70171989cd0064cd92b55961e0e716",
+        "patterns-ctf.md": "41edf048db36c3cb6ab1264f226df920adfa27923844a9ec5b40664ffe655c27",
+        "patterns.md": "be64443fcbd3d83d4a4f30ee4947310014a9bb0a26aace1126fd9a29ceb6b9c3",
+        "platforms-hardware.md": "123b5cc066bc09d7cd25312347aec79acd4476d8cec154ae951432f97912d2dc",
+        "platforms.md": "a0d87958d7430f7bb7095703340a359f0f8b102760ea0a0381fe48534acdaa48",
+        "references/ai-assisted-re.md": "f8fabe6926483dd9eae681e85edf2584856b5950054f7318b53230ca4dbd3cb2",
+        "references/external-input-execution.md": "81377db0580147f3299525aab6e5aa1718e2d4adc928e5fa5990bb9ce3edbea7",
+        "references/ollvm-deobfuscation.md": "9bc48a802ec429ad1d7a1b097581c3c4988581576c6ef68e4e16f60e4b5afeed",
+        "references/re-agent-workflow.md": "b3401427acd68f8b8e3acb5fe30055cd583c7901d7041f7cb56e579b74816786",
+        "references/report-profiles.md": "24539a3bb030cb89a3957646a0adf5f6ea2be5b5136e8c69d6c5415d7c1c3355",
+        "references/report-standard.md": "b1963e53412f12375a5f77abacc9beb0b5df7594f076f6fb47405acd644b4307",
+        "tools-advanced.md": "848c172f222fec082214d26737238395d4831a1f0ea2d034fbb1cda2615d8645",
+        "tools-dynamic.md": "c8b082d9be576e0811b2ef0bf192784ff2d04798cd0b8da437e019dbf8a45d04",
+        "tools.md": "212701fca9bd636c8d07fdca6765f99138014d7d59b25abe3458739387193f60"
+      }
+    },
+    {
+      "package": "dynamic-malware-analysis",
+      "source": "/Users/yaozh/llms/reverse/skills/dynamic-malware-analysis",
+      "files": {
+        "SKILL.md": "450839f6ef10f26ae7f104511f101a4ef8a16392da7481ad1417b8c6faaf83e0",
+        "agents/openai.yaml": "c1e53f142c8b20f49d8daee830d389732443e03828c956bb0477fdcbfa700d97",
+        "references/attribution-rules.md": "88d2e4014b1d31e019bf5f614cf62537cf421f637363771d5dcfecbe34beb1d7",
+        "references/cape-report-map.md": "fcd406e5d81419b58c1c95f4970b26a8f2e98d585e1bccefe54983b2a0a98d22",
+        "references/ddan-report-map.md": "22bcd5b9541df70b7204e268f0247f125b0f64209a247c67bb55b6d96152ffc8",
+        "references/evidence-model.md": "18439c13873c69751dd9ed74c7b1b733adf20a4a0b72a8e5f0c69441aa060e3e",
+        "references/report-template.md": "fe34571810df228c0f320d513636a71426221929d010607454b29507d9c2ff91",
+        "scripts/dynamic_report.py": "515c15acc5f51737c97f1fa57ef65369475d51880e507ba937514ef4a2795072"
+      }
+    },
+    {
+      "package": "malware-analysis",
+      "source": "/Users/yaozh/llms/reverse/skills/malware-analysis",
+      "files": {
+        "SKILL.md": "68e078c75b53753ca79035c6a93b4cf25692ea80ebe23f1d7a95e4ffd9575e1e",
+        "references/anti-analysis-techniques.md": "4589bc802dc323d7fc29e47be23331337ae70563886e560985d7530120d68c61",
+        "references/sandbox-orchestration.md": "679fe226a69e03633b33840dc0b035917c3a800b3b8282ec31c067ba124f658a",
+        "references/yara-sigma-rules.md": "5369e6177e14518b8752696028fe869baa1b8ae96dbc7dc7d88b65a6ac4a1a76"
+      }
+    },
+    {
+      "package": "crypto-obfuscation-analysis",
+      "source": "/Users/yaozh/llms/reverse/skills/crypto-obfuscation-analysis",
+      "files": {
+        "SKILL.md": "0508ec2c0fb8b3696306912a797051ee5af8156f3c0b91930c76b9a3a66cf629",
+        "agents/openai.yaml": "5867d72a0a8c9a9f71a77f12628841589aaff017bbe0d75b2b9a61b999c7e57e",
+        "references/algorithm-fingerprints.md": "d45112d60fe31a14002632128b211fd5d4ae67ff73c8d002f0a281f0a1a8bf3c",
+        "references/common-methods.md": "7b5de5f69178bffa956341c1e8485fe0c7f113ba790cfbbafb65c54b8badd5a6",
+        "references/evidence-scoring.md": "dd786fa9d5fbfad96472f252cc820f7a9cbf799e576b98a2e9e28b16989d98d3",
+        "references/obfuscation-patterns.md": "9c832f6cbfbe1d41ae55f63a650264ad010c7026d1f1242279e68ae6199a1296",
+        "references/semantic-ir-schema.md": "8ffaf8886aa3ca610f3299ffddde5f95d2f71bcf28e65faa4d3a3ec6e9aee487"
+      }
+    },
+    {
+      "package": "sandbox-dynamic-debugging",
+      "source": "/Users/yaozh/llms/reverse/skills/sandbox-dynamic-debugging",
+      "files": {
+        "SKILL.md": "9c43fa13b471285c6ec1721f37ba1fe5afe1bba5b9b35eb0fd39d654f6ecca26",
+        "references/crypto-experiment-playbook.md": "adc305b68f7ded977c079905389a3db80d5abee79d58ed6dadcd472210b929f5"
+      }
+    },
+    {
+      "package": "ghidra-reverse",
+      "source": "/Users/yaozh/llms/reverse/skills/ghidra-reverse",
+      "files": {
+        "SKILL.md": "f71acac4668b0320ce9f9768bb7cacc200b75140f1bab051982c8c5c3d3869b7",
+        "references/ghidra-cheatsheet.md": "bd6fb357f9441f3657dff868d9b9a58db7d9f47d7220e5f8839e4c67276cdd1a"
+      }
+    },
+    {
+      "package": "key-function-analysis",
+      "source": "/Users/yaozh/llms/reverse/skills/key-function-analysis",
+      "files": {
+        "SKILL.md": "f1526cb42a37fddc2ceb76a7178216c957997c987400c03c510e86a61bf75655",
+        "agents/openai.yaml": "57c14d9dd431508e328998aff66b0ec3e5a1af981e36d50844c9f1ad9530c204",
+        "references/deep-analysis-checklist.md": "da6dce63af80a4a08c9648cf025c031416e4c4a587fcb70a59898aa6102b5d92"
+      }
+    },
+    {
+      "package": "protocol-reverse",
+      "source": "/Users/yaozh/llms/reverse/skills/protocol-reverse",
+      "files": {
+        "SKILL.md": "f8408273d7ba4177ed92f838940211d8ba2378a2c89d0efd2a8e33a35d1079da",
+        "references/protocol-workflow.md": "f306d29c2121fbdad5ac12bd19c102f68337b4c0dda25daecc3c331abe63b2f6"
+      }
+    }
+  ]
+}

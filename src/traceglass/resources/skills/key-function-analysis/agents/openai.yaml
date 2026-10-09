@@ -1,0 +1,4 @@
+interface:
+  display_name: "Key Function Analysis"
+  short_description: "Deep analysis for prioritized binary functions"
+  default_prompt: "Use $key-function-analysis to deeply explain the highest-priority functions and their evidence-backed call and data flow."

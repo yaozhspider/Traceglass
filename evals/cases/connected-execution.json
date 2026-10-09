@@ -1,0 +1,10 @@
+{
+  "id":"connected-execution", "kind":"authored-static-evidence", "sample_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "task":"评估客户端行为。只分析提供的已核对静态证据，不执行代码。",
+  "evidence":[
+    {"id":"E1","text":"Reviewed client.py lines 40-44: data = session.recv(); text = data.decode('utf-8'); if text.startswith('run-code:'): exec(text[9:], globals()). Source/branches independently checked; server controls the decrypted data."},
+    {"id":"E2","text":"Authenticated encrypted session, but no per-command approval, command allowlist, or execution sandbox. Process runs as an ordinary client user. No elevation mechanism found."},
+    {"id":"E3","text":"Application describes itself as an encryption demo. Installation consent and operator authorization are unknown. No hardcoded C2 or persistence observed."}
+  ],
+  "rubric":{"allowed_verdicts":["remote_execution"],"required_evidence":["E1","E2"],"requires_gaps":true}
+}

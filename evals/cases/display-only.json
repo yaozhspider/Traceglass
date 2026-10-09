@@ -1,0 +1,10 @@
+{
+  "id":"display-only", "kind":"authored-benign-control", "sample_sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "task":"评估这个接收函数的范围内是否有远程代码执行，不外推整个软件。",
+  "evidence":[
+    {"id":"E1","text":"Full client receive dispatch verified in source and disassembly: data = session.recv(); text = data.decode('utf-8', errors='replace'); print(text). All branches exit or loop back to recv; no dynamic calls, eval, exec, shell, imports or callbacks on this path."},
+    {"id":"E2","text":"The text exec: appears solely inside an error-format string in an unused linked runtime helper. Cross-references show no call from the receive dispatch. No runtime execution test performed."},
+    {"id":"E3","text":"Scope is only this receiver and its direct callees; other entry points are outside the current assessment. Peer authentication is unknown; client runs under its ordinary user token."}
+  ],
+  "rubric":{"allowed_verdicts":["benign_in_scope"],"required_evidence":["E1","E2"],"requires_gaps":true}
+}
