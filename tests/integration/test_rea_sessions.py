@@ -89,10 +89,23 @@ def test_rea_tools_and_analysis_skills_reach_native_leader_and_worker(tmp_path, 
             assert 'mcp__rea__state_probe' not in schemas
             assert 'rea_native' in schemas['reset_tools']['function']['parameters']['properties']
             return ChatResponse(content=[ToolCallBlock(id='activate', name='reset_tools',
-                input='{"rea_native": true}')], is_last=True)
+                input='{"rea_native": true, "rea_validation": true}')], is_last=True)
         if len(results) == 1:
             assert 'mcp__rea__state_probe' in schemas
             return ChatResponse(content=[ToolCallBlock(id='probe', name='mcp__rea__state_probe', input='{}')], is_last=True)
+        if len(results) == 2:
+            return ChatResponse(content=[ToolCallBlock(id='list-workflows', name='ListReaWorkflows', input='{}')], is_last=True)
+        if len(results) == 3:
+            assert 'investigate_feature' in results[-1].output[0].text
+            return ChatResponse(content=[ToolCallBlock(id='workflow', name='GetReaWorkflow',
+                input='{"name":"investigate_feature","arguments":{"feature":"fixture"}}')], is_last=True)
+        if len(results) == 4:
+            assert 'counter=1' in results[-1].output[0].text
+            return ChatResponse(content=[ToolCallBlock(id='evidence', name='mcp__rea__evidence_probe', input='{}')], is_last=True)
+        if len(results) == 5:
+            assert results[-1].state == 'success', results[-1]
+            assert any('traceglass_evidence' in b.text for b in results[-1].output)
+            return ChatResponse(content=[ToolCallBlock(id='query', name='QueryReaEvidence', input='{}')], is_last=True)
         return ChatResponse(content=[TextBlock(text='REA_PROBE_DONE')], is_last=True)
 
     monkeypatch.setattr(OpenAIChatModel, '_call_api', provider)
@@ -125,9 +138,16 @@ def test_rea_tools_and_analysis_skills_reach_native_leader_and_worker(tmp_path, 
                     Msg(name='user', role='user', content=[TextBlock(text='Probe REA')]))
                 messages, _ = await storage.list_messages('local', sid, limit=20)
                 outputs = [b for m in messages for b in m.content if isinstance(b, ToolResultBlock)]
-                assert len(outputs) == 2 and all(b.state == 'success' for b in outputs), outputs
+                assert len(outputs) == 6 and all(b.state == 'success' for b in outputs), outputs
                 assert outputs[1].output[0].text == '1'
+                receipt = outputs[4].metadata['traceglass_archive']
+                assert receipt['archive_status'] == 'saved'
+                archived = json.loads(outputs[-1].output[0].text)
+                assert archived['total'] == (1 if aid == AGENT_ID else 2)
+                assert receipt['traceglass_evidence'][0]['id'] in {r['id'] for r in archived['items']}
+                assert {r['session_id'] for r in archived['items']} >= {leader.id}
                 workspace = await app.state.workspace_manager.get_workspace('local', aid, sid, 'test-workspace')
                 names = {s.name for s in await workspace.list_skills()}
-                assert {'dynamic-malware-analysis','malware-analysis','crypto-obfuscation-analysis','rea-analysis'} <= names
+                assert {'dynamic-malware-analysis','malware-analysis','crypto-obfuscation-analysis',
+                        'rea-analysis','reverse-engineer-anything'} <= names
     asyncio.run(run())

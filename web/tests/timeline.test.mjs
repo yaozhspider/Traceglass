@@ -113,3 +113,18 @@ test('artifact save counts as evidence only when the result contains a native ev
   ];
   assert.equal(evidenceTools(messages).length, 1);
 });
+
+test('REA index recognizes only successful archive receipts and retains source call identity', () => {
+  const receipt = {traceglass_archive: {archive_status: 'saved',
+    traceglass_evidence: [{id: 'tgev_fixture', upstream_id: 'ev_fixture', kind: 'evidence'}]}};
+  const blocks = [call('a', 'mcp__rea__procedure_pseudo_code'),
+    {...result('a'), metadata: receipt},
+    call('b', 'mcp__rea__procedure_pseudo_code'),
+    {...result('b', 'error'), metadata: receipt},
+    call('c', 'mcp__rea__procedure_pseudo_code'),
+    {...result('c'), output: [{type:'text', text:JSON.stringify(receipt.traceglass_archive)}]}];
+  const records = evidenceTools([message('rea-message', blocks)]);
+  assert.equal(records.length, 1);
+  assert.equal(records[0].messageId, 'rea-message');
+  assert.equal(records[0].call.id, 'a');
+});

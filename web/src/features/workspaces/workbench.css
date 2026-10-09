@@ -1816,3 +1816,15 @@ body:has(.product-workbench) {
   overflow-wrap: anywhere;
   color: #b7cebe;
 }
+
+.rea-evidence-panel { padding: 16px; overflow-y: auto; min-height: 0; }
+.rea-evidence-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rea-evidence-panel select { width: 100%; margin: 8px 0 16px; padding: 8px; background: var(--panel, #171b24); color: inherit; border: 1px solid #39414f; border-radius: 6px; }
+.rea-evidence-row { display: flex; flex-direction: column; gap: 5px; text-align: left; width: 100%; margin-bottom: 8px; padding: 12px; background: transparent; color: inherit; border: 1px solid #39414f; border-radius: 8px; overflow-wrap: anywhere; cursor: pointer; }
+.rea-evidence-row.selected { border-color: #769cf2; background: #202c42; }
+.rea-evidence-row small, .rea-evidence-row span { color: #9da8bb; font-size: 12px; }
+.rea-evidence-detail { margin-top: 20px; border-top: 1px solid #39414f; padding-top: 12px; overflow-wrap: anywhere; }
+.rea-evidence-detail dt { color: #9da8bb; font-size: 12px; margin-top: 12px; }
+.rea-evidence-detail dd { margin: 4px 0; font-size: 12px; }
+.rea-evidence-detail pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; max-height: 420px; overflow: auto; }
+.rea-evidence-detail details { margin-top: 12px; }

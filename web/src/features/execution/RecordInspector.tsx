@@ -1,6 +1,7 @@
 import { Fingerprint } from 'lucide-react';
 import { RawDetails } from './SessionTimeline';
 import type { Block } from './native';
+import {reaReceipt} from './reaEvidence';
 
 type EvidenceInspection = {
   kind: 'evidence';
@@ -44,6 +45,13 @@ export function RecordInspector({ value }: { value: unknown }) {
     ) : (
       <p className="muted">点击消息详情或证据索引查看原始记录。</p>
     );
+  const receipts = reaReceipt(value.result);
+  if (receipts.length) return <section className="evidence-detail">
+    <div className="eyebrow"><Fingerprint size={16} />REA 证据已归档</div>
+    <p>可在顶部“证据”面板查看所有成员的记录和原始结果。归档不代表结论已验证。</p>
+    {receipts.map(record => <p key={record.id}><code>{record.id}</code><br />上游：{record.upstream_id}</p>)}
+    <RawDetails label="完整工具输入与结果" value={value} />
+  </section>;
   const record = evidenceData(value.result);
   const text = (key: string) =>
     String(value.input[key] ?? record[key] ?? '未标注');

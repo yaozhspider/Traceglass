@@ -29,6 +29,10 @@ from traceglass.tools.review import AnalysisReview
 from traceglass.integrations.analysis_input import AnalysisInput
 from traceglass.integrations.rea import ReaSessions
 from traceglass.integrations.rea_groups import ReaToolsMiddleware
+from traceglass.integrations.rea_evidence import ReaEvidenceMiddleware
+from traceglass.evidence.store import EvidenceStore
+from traceglass.tools.rea_evidence import evidence_tools
+from traceglass.api.evidence import create_evidence_router
 
 
 def create_app(*, settings: Settings | None = None) -> FastAPI:
@@ -54,6 +58,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         workspaces = ProductLocalWorkspaceManager(**workspace_options)
     product_workspaces = ProductWorkspaceService(data_dir, storage, workspaces, AGENT_ID)
     rea = ReaSessions(settings.rea_kit)
+    rea_evidence = EvidenceStore(data_dir / 'rea-evidence.sqlite3')
 
     async def analysis_tools(user_id: str, agent_id: str, session_id: str):
         from traceglass.tools import build_analysis_tools
@@ -80,8 +85,12 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         if settings.rea_kit:
             session = await storage.get_session(user_id, agent_id, session_id)
             root = workspaces.host_root(user_id, agent_id, session.config.workspace_id)
+            wid = session.config.workspace_id
             rea_middlewares.append(ReaToolsMiddleware(
-                await rea.tools(root, user_id, session_id, session.config.workspace_id)))
+                await rea.tools(root, user_id, session_id, wid),
+                await rea.workflow_tools(root, user_id, session_id, wid) + evidence_tools(rea_evidence, user_id, wid)))
+            rea_middlewares.append(ReaEvidenceMiddleware(rea_evidence, user_id, wid, session_id,
+                                                        agent_id, rea.connection_id(root, user_id, session_id)))
         if settings.rea_kit and 'REA integration:' not in workspace.instructions:
             workspace.instructions += ('\n\nREA integration: If mcp__rea__ tools are present, read the rea-analysis Skill. '
                 'REA runs in a separate, network-disabled container with this workspace mounted read-only at /workspace. '
@@ -134,6 +143,8 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             await rea.close()
 
     app.state.rea_sessions = rea
+    app.state.rea_evidence = rea_evidence
+    app.include_router(create_evidence_router(product_workspaces, rea_evidence))
     app.router.lifespan_context = managed_lifespan
     app.include_router(create_workspace_router(product_workspaces))
     app.include_router(create_runtime_router(product_workspaces, rea.status))

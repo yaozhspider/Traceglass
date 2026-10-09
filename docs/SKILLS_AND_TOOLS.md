@@ -32,7 +32,7 @@ runtime only seeds an empty skills directory. Existing names and edits are kept.
 When `TRACEGLASS_LEGACY_PROJECT` points at the existing reverse project, the
 native loader discovers all 45 legacy packages (including the nested
 `pentest-tools/src-hunter` and `reverse-engineering/dsl-vm-reverse` packages) and
-the Traceglass, REA and behavior-chain-review Skills: **48 effective packages** with the current tree.
+the Traceglass, REA and behavior-chain-review Skills: **49 effective packages**, including the official `reverse-engineer-anything` release Skill, with the current tree.
 Explicit external packages override bundled fallbacks of the same directory
 name; collisions between different external roots remain an error.
 A staging copy qualifies duplicate frontmatter
@@ -57,6 +57,10 @@ A local workspace and path checks are not a sandbox against hostile execution.
 
 ## MCP
 
+For the pinned REA 6.1.0 upgrade, official Skill, six MCP workflows and shared
+evidence archive, see [REA integration](REA_INTEGRATION.md). The old kit path
+below remains supported; use the new generated kit path to activate 6.1.0.
+
 REA container-kit is configured separately from in-sandbox MCP endpoints:
 
 ```sh
@@ -72,7 +76,7 @@ REA processes and current-binary state. Connections survive approvals and pauses
 service shutdown closes them, and the next analysis can reopen its binary.
 Cache volumes persist. Use `close_binary` when no longer analyzing a binary.
 
-Native `MCPClient` and `MCPTool` supply all 133 discovered tools, permission
+Native `MCPClient` and `MCPTool` supply all 138 discovered tools in the 6.1.0 kit, permission
 checks, events and execution. A middleware attaches them to both leader and worker
 toolkits: 12 common binary tools are immediately equipped; other tools use native
 `ToolGroup` / `reset_tools` activation. Large individual schemas have separate
@@ -85,7 +89,7 @@ in `/product/runtime` integration status. Reconnection is attempted on a later
 analysis setup, after a 30-second cooldown. Startup timeout is 120 seconds;
 tool timeout is 600 seconds.
 
-Confirmed with an authored ELF object: 133-tool discovery, `open_binary`,
+Confirmed with an authored ELF object: 138-tool discovery (6.1.0), `open_binary`,
 Ghidra 12.1.4 `binary_overview`, `search_procedures`, `procedure_pseudo_code`,
 and `close_binary`. The fixture was never executed. Hopper remains its demo
 edition; advertised tools can have host/provider limitations, and this change

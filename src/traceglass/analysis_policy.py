@@ -18,7 +18,7 @@ Todo 与覆盖记录不同。成员提交路径及证据，主 Agent 复核并�
 发现执行能力时分别说明能力、授权边界和恶意意图证据；关键路径未解决时禁止整体良性断言。
 技术阻塞时可以交付阶段性 unknown 报告，不能虚构证据、将未完成关键 Todo 标为 completed。
 IDA 打开工作区文件前用 PrepareAnalysisInput；只有返回非空 ida_file_path 才传给同机 IDA。
-IDA 不可用时使用 mcp__rea__open_binary(provider="ghidra") 打开返回的 rea_file_path，
+IDA 不可用时使用 mcp__rea__open_binary(path=返回的 rea_file_path, provider_id="ghidra")，
 或其他已验证可用的工作区分析器。不要重复猜测 /workspace 在宿主机的路径。
 '''
 

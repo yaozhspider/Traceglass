@@ -3,6 +3,7 @@ import {
   ArrowDown,
   Bot,
   FileText,
+  Fingerprint,
   FolderOpen,
   GitBranch,
   Info,
@@ -17,6 +18,7 @@ import { SessionTimeline } from '../execution/SessionTimeline';
 import { PermissionPicker } from '../execution/PermissionControl';
 import { canPauseExecution } from '../execution/controls';
 import { RecordInspector } from '../execution/RecordInspector';
+import { ReaEvidencePanel } from '../execution/ReaEvidencePanel';
 import { statusLabel } from '../execution/timeline';
 import { WorkspaceHome } from './WorkspaceHome';
 import { WorkspaceSidebar, SamplePicker } from './WorkspaceSidebar';
@@ -34,7 +36,7 @@ export function WorkbenchShell() {
     path: string;
     revision: number;
   } | null>(null);
-  const [panel, setPanel] = useState<'files' | 'message' | null>(null);
+  const [panel, setPanel] = useState<'files' | 'message' | 'evidence' | null>(null);
   const [sidebar, setSidebar] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -201,6 +203,10 @@ export function WorkbenchShell() {
               <h1>{active?.session.config.name ?? '新建分析'}</h1>
             </div>
             <div className="header-actions">
+              <button className="secondary-button" aria-expanded={panel === 'evidence'}
+                onClick={() => setPanel(panel === 'evidence' ? null : 'evidence')}>
+                <Fingerprint size={15} />证据
+              </button>
               <span className={`live-status ${active?.status ?? ''}`}>
                 <i />
                 {status}
@@ -579,6 +585,9 @@ export function WorkbenchShell() {
                 <Info size={15} />
                 记录详情
               </button>
+              <button role="tab" aria-selected={panel === 'evidence'} onClick={() => setPanel('evidence')}>
+                <Fingerprint size={15} />共享证据
+              </button>
               <button
                 className="icon-button panel-close"
                 aria-label="关闭侧面板"
@@ -587,7 +596,10 @@ export function WorkbenchShell() {
                 <X size={17} />
               </button>
             </div>
-            {panel === 'files' && config && route.workspace ? (
+            {panel === 'evidence' && config && route.workspace ? (
+              <ReaEvidencePanel key={route.workspace} user={config.user_id} workspaceId={route.workspace}
+                refreshKey={active?.status ?? 'draft'} />
+            ) : panel === 'files' && config && route.workspace ? (
               <WorkspaceFiles
                 key={route.workspace}
                 user={config.user_id}

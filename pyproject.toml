@@ -33,7 +33,7 @@ traceglass = "traceglass.api.app:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-traceglass = ["resources/skills/**/*", "resources/skill-sources.json"]
+traceglass = ["resources/skills/**/*", "resources/skill-sources.json", "resources/rea-release.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

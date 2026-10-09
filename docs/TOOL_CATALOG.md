@@ -54,7 +54,7 @@
 - `archive_sandbox_experiment`
 - `record_crypto_experiment`
 
-## REA MCP：133 个
+## REA MCP：138 个（6.1.0）
 
 完整调用名以 `mcp__rea__` 开头。12 个常用工具默认启用，其余用原生 reset_tools 按需启用对应 rea_* 分组。
 
@@ -95,7 +95,6 @@
 - `set_addresses_names`
 - `set_bookmark`
 - `set_comment`
-- `set_current_document`
 - `set_inline_comment`
 - `unset_bookmark`
 - `xrefs`（默认启用）
@@ -191,6 +190,25 @@
 - `verify_unknown_resolution`
 - `get_navigation_context`
 - `inspect_address_context`
+
+- `inspect_binary_layout`
+- `inspect_evm_interface`
+- `inspect_recorded_crash`
+- `inspect_web_network_capture`
+- `observe_native_calls`
+- `trace_dylib_resolution`
+
+## 工作流和共享证据适配工具
+
+`ListReaWorkflows`、`GetReaWorkflow`、`QueryReaEvidence`、`ReadReaEvidence`。
+这些是 Traceglass 的原生适配工具，不计入 138 个 REA MCP 工具。六个上游工作流为：
+
+- `investigate_feature`
+- `compare_application_versions`
+- `verify_reconstruction`
+- `trace_crash`
+- `audit_residual_unknowns`
+- `prepare_bounded_process_capture`
 
 ## IDA MCP
 

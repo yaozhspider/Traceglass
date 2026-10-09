@@ -7,7 +7,7 @@ AgentScope MCPTool still owns schemas, permissions, execution and events.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 import json
 from pathlib import Path
@@ -48,6 +48,8 @@ class _Connection:
     status: str = 'connecting'
     count: int = 0
     attempted_at: float = 0
+    client: MCPClient | None = None
+    instance_id: str = field(default_factory=lambda: uuid4().hex)
 
 
 class ReaSessions:
@@ -80,6 +82,7 @@ class ReaSessions:
         client = None
         try:
             client = rea_client(self.kit, root, user_id, session_id)
+            connection.client = client
             async with asyncio.timeout(120):
                 await client.connect()
                 tools = await client.list_tools()
@@ -102,6 +105,19 @@ class ReaSessions:
                     await client._stack.aclose()
             if connection.status == 'connected':
                 connection.status = 'not_checked'
+
+    def connection_id(self, root: Path, user_id: str, session_id: str) -> str:
+        connection = self._connections.get((user_id, session_id, str(root.resolve())))
+        return connection.instance_id if connection else 'unavailable'
+
+    async def workflow_tools(self, root: Path, user_id: str, session_id: str, workspace_id: str):
+        from .rea_workflows import ReaWorkflows
+        await self.tools(root, user_id, session_id, workspace_id)
+        connection = self._connections.get((user_id, session_id, str(root.resolve())))
+        # AgentScope 2.0.6 exposes only MCP tools publicly. Keep this one
+        # compatibility boundary narrow; MCP ClientSession owns prompt protocol.
+        client = connection.client if connection and connection.status == 'connected' else None
+        return ReaWorkflows(client._session if client else None).tools()
 
     def status(self, workspace_id: str) -> list[dict]:
         if self.kit is None:

@@ -130,6 +130,7 @@ export function combineMessages(history: Message[], events: NativeEvent[]): Mess
       else block.data = [...(Array.isArray(block.data) ? block.data : []), event];
     }
     if (event.state) block.state = event.state;
+    if (event.metadata) block.metadata = event.metadata;
   }
   const live = new Map(result.map(message => [message.id,message]));
   const savedIds = new Set(history.map(message => message.id));
@@ -150,6 +151,7 @@ export function combineMessages(history: Message[], events: NativeEvent[]): Mess
         }
         if (block.name) previous.name = block.name;
         if (block.data) previous.data = block.data;
+        if (block.metadata) previous.metadata = block.metadata;
       }
       for (const block of content) if (block.type === 'tool_result' && !block.name) block.name = content.find(b=>b.type==='tool_call'&&b.id===block.id)?.name;
       return {...snapshot,content,finished_reason:fresh.finished_reason??snapshot.finished_reason,error:fresh.error??snapshot.error};

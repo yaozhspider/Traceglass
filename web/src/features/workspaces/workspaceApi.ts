@@ -1,5 +1,6 @@
 import type {ExecutionPermission, ModelConfig} from '../execution/nativeApi';
 import {fileQuery} from './workspaceData';
+import type {ReaEvidence, ReaEvidencePage} from '../execution/reaEvidence';
 export {sampleContext} from './workspaceData';
 
 export type WorkspaceSummary = {
@@ -82,6 +83,13 @@ function upload(user: string, id: string, file: File, onProgress?: (percent: num
 }
 
 export const workspaceApi = {
+  reaEvidence: (user: string, id: string, filters: {kind?: string; sample_sha256?: string; cursor?: number} = {}, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') query.set(key, String(value));
+    return json<ReaEvidencePage>(user, `${resource(id)}/rea-evidence?${query}`, {signal});
+  },
+  reaRecord: (user: string, id: string, recordId: string, signal?: AbortSignal) =>
+    json<ReaEvidence>(user, `${resource(id)}/rea-evidence/${encodeURIComponent(recordId)}`, {signal}),
   list: (user: string, signal?: AbortSignal) => json<{workspaces: WorkspaceSummary[]}>(user, root, {signal}),
   get: (user: string, id: string, signal?: AbortSignal) => json<WorkspaceDetail>(user, resource(id), {signal}),
   runtime: (user: string, id: string, signal?: AbortSignal) => json<WorkspaceRuntime>(user, `/product/runtime?${new URLSearchParams({workspace_id: id})}`, {signal}),

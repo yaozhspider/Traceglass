@@ -2,6 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { combineMessages, parseFrames, pendingConfirmations, confirmationKey, projectTasks, replyErrorMessage, isSampleContext, replyFinishedLabel, hasRecordedUserInput } from '../src/features/execution/native.ts';
 const event = (id, type, fields = {}) => ({id, type, reply_id:'r1', created_at:'2026-09-28T10:00:00', ...fields});
+test('native archive metadata survives streaming and reconnect snapshots', () => {
+ const metadata = {traceglass_archive: {archive_status:'saved', traceglass_evidence:[{id:'tgev_test'}]}};
+ const events = [event('end','TOOL_RESULT_END',{tool_call_id:'t',state:'success',metadata})];
+ const live = combineMessages([],events);
+ assert.deepEqual(live[0].content[0].metadata,metadata);
+ const snapshot = [{id:'r1',role:'assistant',content:[{type:'tool_result',id:'t',state:'success',output:'original'}]}];
+ const restored = combineMessages(snapshot,events)[0].content[0];
+ assert.deepEqual(restored.metadata,metadata);
+ assert.equal(restored.output,'original');
+});
 test('stream joins text blocks, deduplicates replay, keeps tool args and error', () => {
  const events = [event('1','REPLY_START',{name:'analyst'}), event('2','TEXT_BLOCK_DELTA',{block_id:'b', delta:'检查'}),event('2','TEXT_BLOCK_DELTA',{block_id:'b', delta:'检查'}),event('3','TEXT_BLOCK_DELTA',{block_id:'b', delta:'样本'}),event('4','TOOL_CALL_START',{tool_call_id:'t',tool_call_name:'inspect_file'}),event('5','TOOL_CALL_DELTA',{tool_call_id:'t',delta:'{"path":"a.bin"}'}),event('6','TOOL_RESULT_TEXT_DELTA',{tool_call_id:'t',delta:'not found'}),event('7','TOOL_RESULT_END',{tool_call_id:'t',state:'error'})];
  const msgs = combineMessages([],events);

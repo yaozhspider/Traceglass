@@ -62,21 +62,26 @@ traceglass
 ```
 
 The old project is read-only. Traceglass loads its model settings, discovers 45
-legacy Skill packages plus the built-in Traceglass and REA Skills (48 total), exposes 41
+legacy Skill packages plus the built-in Traceglass and REA Skills (49 effective packages, including the official REA Skill), exposes 41
 legacy reverse tools through a native AgentScope MCP client, and copies samples,
 rules and reports into its own Docker workspace. IDA contributes its tools only
 when the separately started IDA MCP service is reachable. If IDA is offline,
 the session can still use the static reverse MCP tools and the UI should report
 IDA as unavailable.
 
-REA is optional. Its preloaded kit image supplies 133 tools, including Ghidra and
+REA is optional. The pinned 6.1.0 kit supplies 138 tools, including Ghidra and
 Hopper integration, through a separate native MCP connection for each Agent.
 Twelve common tools are equipped initially; native `reset_tools` activates the
 remaining tool groups on demand to keep large schemas out of routine requests.
-The source package now includes 12 core analysis Skills with references/scripts,
+The source package now includes 13 core analysis Skills with references/scripts,
 so its main analysis workflows are discoverable without the legacy checkout.
 External tool availability still depends on the deployment. See
 [Skills and tools](docs/SKILLS_AND_TOOLS.md) for paths, runtime limits and validation.
+
+The REA 6.1 integration also exposes six native workflows and archives evidence
+for shared access by the leader, workers and workbench. See
+[REA upgrade and testing](docs/REA_INTEGRATION.md) for building, the isolated test
+entry point, supported backends and rollback. The original kit stays usable.
 
 ## What is implemented
 

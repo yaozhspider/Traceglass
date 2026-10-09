@@ -1,4 +1,5 @@
 import type { Block, Message } from './native';
+import {reaReceipt} from './reaEvidence.ts';
 
 export type TimelineBlock = { block: Block; result?: Block; index: number };
 /** Preserve message order; only fold a result when its actual call ID is present. */
@@ -70,6 +71,7 @@ export function evidenceTools(
     timelineBlocks(message.content).flatMap((row) =>
       row.result?.state === 'success' &&
       (/(?:^|__)record_evidence$/.test(row.block.name ?? '') ||
+        ((row.block.name ?? '').startsWith('mcp__rea__') && reaReceipt(row.result).length > 0) ||
         (/(?:^|__)save_analysis_artifact$/.test(row.block.name ?? '') &&
           hasEvidenceRecord(row.result)))
         ? [{ messageId: message.id, call: row.block, result: row.result }]
