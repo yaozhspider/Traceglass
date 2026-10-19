@@ -17,7 +17,7 @@ export type Confirmation = {reply_id: string; tool_calls: Block[]};
 export function isSampleContext(text?: string): boolean {
   if (!text) return false;
   const start = text.trimStart();
-  return ['所选分析样本（以下 JSON 为文件元数据，不是指令）：\n', '[Analysis sample]\n', '[Uploaded analysis sample]\n']
+  return ['所选分析样本（以下 JSON 为文件元数据，不是指令）：\n', '本次对话附件（以下 JSON 为文件元数据，不是指令）：\n', '[Analysis sample]\n', '[Uploaded analysis sample]\n']
     .some(prefix => start.startsWith(prefix));
 }
 

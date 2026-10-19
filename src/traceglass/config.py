@@ -3,10 +3,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+import math
 import os
 from pathlib import Path
 import re
 import shutil
+from urllib.parse import urlsplit
 
 from agentscope.mcp import MCPClient, HttpMCPConfig, StdioMCPConfig
 
@@ -25,15 +27,58 @@ class Settings:
     sandbox_image: str = 'local/traceglass-analysis:latest'
     ida_mcp_url: str | None = None
     rea_kit: Path | None = None
+    strict_evidence_references: bool = True
+    rea_max_connections: int = 10
+    rea_idle_seconds: int = 600
+    rea_queue_wait_seconds: float = 30
     ida_local_files: bool = False
     skill_roots: tuple[Path, ...] = ()
     mcp_config_path: Path | None = None
     user_id: str = "local"
     max_iters: int = 2000
+    auth_enabled: bool = False
+    secure_cookies: bool = False
+    allowed_origins: tuple[str, ...] = ('http://127.0.0.1:5177', 'http://localhost:5177')
+    model_allowed_hosts: tuple[str, ...] = (
+        'api.openai.com', 'api.deepseek.com', 'dashscope.aliyuncs.com',
+        'open.bigmodel.cn', 'api.moonshot.cn', 'api.siliconflow.cn',
+        'ark.cn-beijing.volces.com', 'api.minimax.chat', 'api.minimaxi.com',
+        'llm.asiainfo-sec.com',
+    )
+    model_allowed_origins: tuple[str, ...] = ()
+    model_tls_config: Path | None = None
+    windows_config: Path | None = None
 
     def __post_init__(self):
+        for origin in self.model_allowed_origins:
+            try:
+                parsed = urlsplit(origin)
+                valid = (parsed.scheme == 'https' and parsed.hostname and
+                         parsed.port != 0 and parsed.path in ('', '/') and
+                         not parsed.username and not parsed.password and not parsed.query and
+                         not parsed.fragment and '\\' not in origin and
+                         not any(ord(c) < 33 for c in origin))
+            except ValueError:
+                valid = False
+            if not valid:
+                raise ValueError('TRACEGLASS_MODEL_ALLOWED_ORIGINS requires HTTPS origins (host and optional port, no API path)')
+        if self.auth_enabled and self.workspace_backend != 'docker':
+            raise ValueError('Multi-user deployments require Docker workspaces')
+        if self.auth_enabled:
+            for origin in self.allowed_origins:
+                parsed = urlsplit(origin)
+                local = parsed.hostname in {'localhost','127.0.0.1','::1','testserver'}
+                if (not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment
+                        or parsed.path not in {'','/'} or parsed.scheme not in {'http','https'}
+                        or (not local and (parsed.scheme != 'https' or not self.secure_cookies))):
+                    raise ValueError('Public registration requires HTTPS origins and secure cookies')
+        if self.auth_enabled and not self.allowed_origins:
+            raise ValueError('Configure explicit browser origins for multi-user mode')
         if self.max_iters < 1:
             raise ValueError("TRACEGLASS_MAX_ITERS must be positive")
+        if (self.rea_max_connections < 1 or self.rea_idle_seconds < 0 or
+                not math.isfinite(self.rea_queue_wait_seconds) or self.rea_queue_wait_seconds <= 0):
+            raise ValueError('Invalid REA connection quota or idle timeout')
         if not self.user_id.strip():
             raise ValueError("TRACEGLASS_USER_ID must not be blank")
         if self.workspace_backend not in {'local', 'docker'}:
@@ -47,8 +92,6 @@ class Settings:
         roots = environment.get("TRACEGLASS_SKILL_ROOTS", "")
         mcp_path = environment.get("TRACEGLASS_MCP_CONFIG")
         skill_roots = tuple(Path(p).expanduser().resolve() for p in roots.split(os.pathsep) if p)
-        if legacy_project:
-            skill_roots = tuple(dict.fromkeys((legacy_project / 'skills', *skill_roots)))
         if environment.get('LLM_PARAMETERS'):
             model_parameters = json.loads(environment['LLM_PARAMETERS'])
         from agentscope.model import OpenAIChatModel
@@ -65,10 +108,23 @@ class Settings:
             ida_mcp_url=environment.get('IDA_MCP_URL') if environment.get('IDA_ENABLED', '').lower() in {'true','1','yes'} else None,
             ida_local_files=environment.get('TRACEGLASS_IDA_LOCAL_FILES', '').lower() in {'true','1','yes'},
             rea_kit=Path(environment['TRACEGLASS_REA_KIT']).expanduser().resolve() if environment.get('TRACEGLASS_REA_KIT') else None,
+            strict_evidence_references=environment.get('TRACEGLASS_STRICT_EVIDENCE_REFERENCES', 'true').lower() in {'true', '1', 'yes'},
+            rea_max_connections=int(environment.get('TRACEGLASS_REA_MAX_CONNECTIONS', '10')),
+            rea_idle_seconds=int(environment.get('TRACEGLASS_REA_IDLE_SECONDS', '600')),
+            rea_queue_wait_seconds=float(environment.get('TRACEGLASS_REA_QUEUE_WAIT_SECONDS', '30')),
             skill_roots=skill_roots,
             mcp_config_path=Path(mcp_path).expanduser().resolve() if mcp_path else None,
             user_id=environment.get("TRACEGLASS_USER_ID", "local"),
             max_iters=int(environment.get("TRACEGLASS_MAX_ITERS", "2000")),
+            auth_enabled=environment.get('TRACEGLASS_AUTH_ENABLED', '').lower() in {'true','1','yes'},
+            secure_cookies=environment.get('TRACEGLASS_SECURE_COOKIES', '').lower() in {'true','1','yes'},
+            allowed_origins=tuple(x.strip().rstrip('/') for x in environment.get('TRACEGLASS_ALLOWED_ORIGINS',
+                'http://127.0.0.1:5177,http://localhost:5177').split(',') if x.strip()),
+            model_allowed_hosts=tuple(x.strip().lower() for x in environment.get('TRACEGLASS_MODEL_ALLOWED_HOSTS',
+                ','.join(cls.model_allowed_hosts)).split(',') if x.strip()),
+            model_allowed_origins=tuple(x.strip().rstrip('/') for x in environment.get('TRACEGLASS_MODEL_ALLOWED_ORIGINS', '').split(',') if x.strip()),
+            model_tls_config=Path(environment['TRACEGLASS_MODEL_TLS_CONFIG']).expanduser().resolve() if environment.get('TRACEGLASS_MODEL_TLS_CONFIG') else None,
+            windows_config=Path(environment['TRACEGLASS_WINDOWS_CONFIG']).expanduser().resolve() if environment.get('TRACEGLASS_WINDOWS_CONFIG') else None,
         )
 
     @property
@@ -77,18 +133,28 @@ class Settings:
 
 
 def skill_paths(settings: Settings) -> list[str]:
-    """Resolve packages once; AgentScope owns loading and Skill Viewer calls."""
+    """Resolve inherited defaults, project contracts, then explicit user packages."""
     builtins = Path(__file__).parent / "resources" / "skills"
+    roots = [(settings.legacy_project / 'skills', False)] if settings.legacy_project else []
+    roots.extend([(builtins, False), *((root, True) for root in settings.skill_roots)])
     packages: dict[str, Path] = {}
-    for root in (builtins, *settings.skill_roots):
+    explicit_names: dict[str, Path] = {}
+    for root, is_explicit in roots:
         if not root.is_dir():
             raise ValueError(f"Skill directory does not exist: {root}")
+        root_names: dict[str, Path] = {}
         manifests = sorted(root.rglob("SKILL.md"))
         for manifest in manifests:
             package = manifest.parent.resolve()
-            previous = packages.get(package.name)
-            if previous is not None and previous != package and not previous.is_relative_to(builtins):
+            previous = root_names.get(package.name)
+            if previous is not None and previous != package:
                 raise ValueError(f"Duplicate Skill package directory name: {package.name}")
+            root_names[package.name] = package
+            if is_explicit:
+                previous = explicit_names.get(package.name)
+                if previous is not None and previous != package:
+                    raise ValueError(f"Duplicate Skill package directory name: {package.name}")
+                explicit_names[package.name] = package
             packages[package.name] = package
     return [str(path) for path in packages.values()]
 
@@ -96,9 +162,9 @@ def skill_paths(settings: Settings) -> list[str]:
 def materialize_skill_paths(settings: Settings, staging_root: Path) -> list[str]:
     """Create native-loader copies with unique frontmatter names.
 
-    Two legacy packages intentionally use the same frontmatter name while
-    living in different directories. AgentScope indexes by the frontmatter
-    name, so preserve both packages but give only the later collision a stable
+    External packages may use the same frontmatter name while living in
+    different directories. AgentScope indexes by the frontmatter name, so
+    preserve both packages but give only the later collision a stable
     qualified name in the workspace copy. The original Skill files remain
     untouched and the legacy MCP resource reader keeps their original names.
     """

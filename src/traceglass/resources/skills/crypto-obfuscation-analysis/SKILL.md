@@ -42,8 +42,10 @@ metadata:
 `timeout` 或 `blocked`）以及三个验证对象：`algorithm`（样本是否确实使用该算法）、
 `implementation`（复现代码是否正确）和 `recovery`（当前样本数据是否恢复）。
 缺依赖、路径错误、架构不兼容或超时只能标记执行失败，不能直接否定算法。
-脚本、输入、输出、日志和哈希应归档到实验目录，并通过 `record_crypto_experiment`
-登记；不能只在最终报告里粘贴一段输出。
+脚本、输入、输出、日志和哈希应归档到实验目录；Linux 通过 `record_crypto_experiment`
+登记，Windows 调试证据通过 `WindowsCollectResults` 回收并引用归档回执。
+Windows 原生 EXE 的动态中间值验证按 `sandbox-dynamic-debugging` 的 Windows 路线；
+固定 Windows 调试 profile 不是任意脚本执行器。不能只在最终报告里粘贴一段输出。
 
 简单 XOR、Base64、ROT 等可直接记录参数表并编写短 Python 复现脚本；复杂算法或
 混淆必须先生成带操作数、目标状态、顺序、位宽和端序的 IR。每次实验只改一个变量，

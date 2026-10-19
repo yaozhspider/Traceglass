@@ -33,6 +33,10 @@ class _ProductPathMixin:
         return self._optional_mcps.status(workspace_id)
 
     def _mapped_agent(self, user_id: str, agent_id: str, workspace_id: str) -> str:
+        if getattr(self, 'require_product_workspace', False):
+            if not workspace_id.startswith('tgws-'):
+                raise LookupError('Only owned product workspaces are available')
+            self.product_store.get(user_id, workspace_id)
         if workspace_id.startswith("tgws-"):
             # Set by ProductWorkspaceService. Native session creation accepts an
             # explicit binding, so validate ownership even outside product APIs.
@@ -73,6 +77,25 @@ class ProductLocalWorkspaceManager(_ProductPathMixin, LocalWorkspaceManager):
 
 class ProductDockerWorkspaceManager(_ProductPathMixin, DockerWorkspaceManager):
     """Use native Docker workspaces with distinct host bind mounts per product."""
+
+    async def _build_and_start(self, *, workspace_id, user_id, agent_id):
+        if not getattr(self, 'require_product_workspace', False):
+            return await super()._build_and_start(workspace_id=workspace_id, user_id=user_id, agent_id=agent_id)
+        from traceglass.accounts.sandbox import AccountDockerWorkspace
+        workspace = AccountDockerWorkspace(
+            workspace_id=workspace_id, host_workdir=self._workdir_for(user_id, agent_id),
+            base_image=self._base_image, node_version=self._node_version, extra_pip=self._extra_pip,
+            gateway_port=self._gateway_port, env=self._env,
+            default_mcps=self._default_mcps, skill_paths=self._skill_paths,
+        )
+        try:
+            await workspace.initialize()
+        except BaseException:
+            await workspace.close()
+            raise
+        workspace.instructions += ('\nAccount sandbox: runtime network access is disabled. '
+            'Do not try to reach other containers or the host. Report when validation requires external connectivity.')
+        return workspace
 
     def host_root(self, user_id: str, agent_id: str, workspace_id: str) -> Path:
         mapped = self._mapped_agent(user_id, agent_id, workspace_id)

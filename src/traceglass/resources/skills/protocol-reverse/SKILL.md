@@ -1,17 +1,19 @@
 ---
 name: protocol-reverse
 description: Use for authorized reverse engineering of custom binary protocols, Protobuf/gRPC, WebSocket frames, and PCAP-driven protocol recovery.
+metadata:
+  traceglass_revision: routing-v1
 ---
 
 # Protocol Reverse Engineering
 
-## ACTION REQUIRED（读完后立刻执行）
+## 项目接入
 
-1. `NOW`: 读取 `../field-journal/precedent-reverse.md` — 确认授权与常规操作边界
-2. `NOW`: 确认任务是否为**协议/流量/序列化格式**逆向（非纯 Web 参数签名 → 转 `js-reverse/`）
-3. `NOW`: 若有目标网络交互 → `../scripts/case-init.ps1` 完成 scope；`auth` 未 granted 禁止对目标 ACT
-4. `NEXT`: 读取 `../tool-index.md`；缺工具 bootstrap（tshark/wireshark 等可能需手动）
-5. `ACT`: 进入工作流 Phase 1，产出帧布局或消息字典草稿
+任务入口与证据规则使用 `traceglass-analysis`。先按 `rea-analysis` 评估相关能力：
+历史 HAR/mitmproxy 可检索 `inspect_web_network_capture`，客户端代码按实际格式选择语义入口；
+PCAP 则使用实际可用的解析工具，不把缺少 REA PCAP 能力当作整个任务阻塞。
+纯 Web 参数签名转 `js-reverse`。历史日志解析不发起新连接；主动重放、hook 或执行客户端
+先核当前任务范围与适用动态通道。安装工具属于独立运维任务，不自动 bootstrap。
 
 ## 适用场景
 
@@ -56,7 +58,7 @@ description: Use for authorized reverse engineering of custom binary protocols, 
 ```text
 □ Protobuf：.proto 恢复（blackboxprotobuf / pbtk / protoc --decode_raw）
 □ gRPC：HTTP/2 headers + protobuf body
-□ 加密：找密钥派生（客户端 so/dll/JS）→ 联合 ida-reverse / js-reverse / apk-reverse
+□ 加密：找密钥派生（客户端 so/dll/JS）→ 联合 rea-analysis / js-reverse / apk-reverse
 □ 重放：仅在授权 scope 内；先无害字段再敏感操作
 ```
 
@@ -77,7 +79,7 @@ MUST 产出：
 | Python3 | 是 | 解码脚本 | 系统 |
 | blackboxprotobuf | 可选 | 未知 protobuf | pip |
 | ImHex / 010 | 可选 | 结构模板 | 手动 |
-| IDA / r2 / Ghidra | 按需 | 客户端序列化函数 | 见对应 skill |
+| REA / 已配置的其他引擎 | 按需 | 客户端序列化函数 | 先按 rea-analysis 选择 |
 
 ## 参考
 
@@ -86,8 +88,10 @@ MUST 产出：
 
 ## 路由上下文
 
-**上游**: `MASTER-ROUTING` R21 · `routing.md`  
-**下游**: 需客户端算法 → `ida-reverse`/`js-reverse`；需利用重放 → `pentest-tools`/`api-security`  
+**上游**: `traceglass-analysis`
+
+**下游**: 需客户端算法 → `rea-analysis`/`js-reverse`；授权的主动测试 → 对应动态/测试 Skill
+
 **同级**: `malware-analysis`（C2 协议）、`digital-forensics`（流量取证）
 
 ## 任务完成自检
@@ -95,4 +99,4 @@ MUST 产出：
 - [ ] 是否还原了消息布局或状态机（而非只贴 hex）？
 - [ ] 是否有可复现解码命令？
 - [ ] 是否遵守 scope / 脱敏？
-- [ ] 是否回写 field-journal / 报告 Checklist？
+- [ ] 是否按公共证据契约保存原始帧、解码结果与未解字段？

@@ -1,3 +1,4 @@
+import {AccountControls} from '../account/AccountControls';
 import {useEffect, useRef, useState} from 'react';
 import {ArrowRight, ArrowUpRight, FolderOpen, Plus, RefreshCw, Search, X} from 'lucide-react';
 import type {WorkspaceSummary} from './workspaceApi';
@@ -31,7 +32,7 @@ export function WorkspaceHome({workspaces, loading, error, onOpenWorkspace, onCr
   return <div className="workspace-overview">
     <nav className="workspace-home-rail" aria-label="主导航"><span className="brand-mark">TG</span><FolderOpen size={23}/><span>工作区</span></nav>
     <main className="workspace-home-body">
-      <header className="workspace-home-top"><strong>溯镜 <span>TRACEGLASS</span></strong><span>逆向分析工作台</span></header>
+      <header className="workspace-home-top"><strong>溯镜 <span>TRACEGLASS</span></strong><AccountControls/></header>
       <section className="workspace-home-intro"><div><div className="eyebrow">YOUR INVESTIGATIONS</div><h1>每条线索，都有归处。</h1><p>用工作区组织样本、分析对话与证据，接着上一次发现继续。</p></div><button className="primary-button" onClick={openCreate}><Plus size={17}/>新建工作区</button></section>
       <div className="workspace-home-list-heading"><h2>工作区 <span>{workspaces.length}</span></h2><label className="workspace-search"><Search size={16}/><input aria-label="搜索工作区" placeholder="搜索工作区…" value={query} onChange={event => setQuery(event.target.value)}/></label></div>
       {error && <div className="workspace-error" role="alert">{error}<button onClick={onRetry}><RefreshCw size={14}/>重试</button></div>}

@@ -1,3 +1,4 @@
+import {AccountControls} from '../account/AccountControls';
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowDown,
@@ -24,13 +25,14 @@ import { WorkspaceHome } from './WorkspaceHome';
 import { WorkspaceSidebar, SamplePicker } from './WorkspaceSidebar';
 import { WorkspaceFiles } from './WorkspaceFiles';
 import { useWorkbench } from './useWorkbench';
+import {ComposerAttachments} from './ComposerAttachments';
 import { WorkspaceFileContext } from './WorkspaceFileContext';
 import './workspace.css';
 import './workbench.css';
 
 export function WorkbenchShell() {
   const workbench = useWorkbench();
-  const { config, detail, active, route, selectedSample } = workbench;
+  const { config, detail, active, route, selectedSample, selectedSamples } = workbench;
   const [inspected, setInspected] = useState<unknown>(null);
   const [requestedFile, setRequestedFile] = useState<{
     path: string;
@@ -42,6 +44,11 @@ export function WorkbenchShell() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const follow = useRef(true);
+  const attachmentInput = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
+  const [dragging, setDragging] = useState(false);
+  const [dropError, setDropError] = useState('');
+  useEffect(() => {dragDepth.current = 0; setDragging(false); setDropError('');}, [route.workspace, route.session]);
   useEffect(() => {
     setInspected(null);
     setPanel(null);
@@ -93,6 +100,8 @@ export function WorkbenchShell() {
     !detail ||
     workbench.workspaceLoading ||
     workbench.busy ||
+    !!workbench.deletingSample ||
+    workbench.attachments.queue.blocked() ||
     workbench.permissionSaving ||
     workbench.pausing ||
     running ||
@@ -160,13 +169,15 @@ export function WorkbenchShell() {
             detail={detail}
             workspaces={workbench.workspaces}
             sessionId={route.session ?? undefined}
-            selectedSample={selectedSample}
-            onSelectSample={(sample) =>
-              workbench.selectSample(sample?.sample_id ?? null)
-            }
+            selectedSamples={selectedSamples}
+            onSelectSamples={workbench.selectSamples}
+            selectionDisabled={workbench.busy || workbench.workspaceLoading}
+            deleteDisabled={workbench.busy || workbench.workspaceLoading || !!Object.keys(workbench.runtime?.sessions ?? {}).length || Object.values(workbench.runtime?.members ?? {}).some(status => status !== 'idle')}
+            deletingSample={workbench.deletingSample}
             onUploaded={(sample) =>
               workbench.sampleUploaded(sample, detail.workspace.workspace_id)
             }
+            onDeleteSample={workbench.deleteSample}
             onOpenWorkspace={workbench.openWorkspace}
             onHome={() => workbench.openWorkspace(null)}
             onOpenSession={(task) => workbench.openSession(task.session_id)}
@@ -203,6 +214,7 @@ export function WorkbenchShell() {
               <h1>{active?.session.config.name ?? '新建分析'}</h1>
             </div>
             <div className="header-actions">
+              <AccountControls/>
               <button className="secondary-button" aria-expanded={panel === 'evidence'}
                 onClick={() => setPanel(panel === 'evidence' ? null : 'evidence')}>
                 <Fingerprint size={15} />证据
@@ -229,14 +241,14 @@ export function WorkbenchShell() {
             </div>
           </header>
           <div className="workspace-context">
-            {selectedSample ? (
+            {selectedSamples.length ? (
               <span
                 className="sample-identity"
-                title={`${selectedSample.name}\nSHA-256 ${selectedSample.sha256}`}
+                title={selectedSamples.map(sample => `${sample.name}\nSHA-256 ${sample.sha256}`).join('\n\n')}
               >
                 <FileText size={13} />
-                <strong>{selectedSample.name}</strong>
-                <code>{selectedSample.sha256.slice(0, 12)}</code>
+                <strong>{selectedSamples.length === 1 ? selectedSamples[0]?.name : `${selectedSamples.length} 个样本`}</strong>
+                <code>{selectedSamples.length === 1 ? selectedSamples[0]?.sha256.slice(0, 12) : selectedSamples.map(sample => sample.name).join('、')}</code>
               </span>
             ) : (
               <span className="context-label">分析工作台</span>
@@ -427,13 +439,54 @@ export function WorkbenchShell() {
               </button>
             )}
             <form
-              className="composer"
+              className={`composer${dragging ? ' composer-dragging' : ''}`}
+              aria-label="对话输入框"
+              onDragEnter={event => {
+                if (!event.dataTransfer.types.includes('Files')) return;
+                event.preventDefault();
+                dragDepth.current++;
+                setDragging(true);
+              }}
+              onDragOver={event => {
+                if (!event.dataTransfer.types.includes('Files')) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = workbench.busy || !detail || workbench.workspaceLoading ? 'none' : 'copy';
+              }}
+              onDragLeave={event => {
+                event.preventDefault();
+                dragDepth.current = Math.max(0, dragDepth.current - 1);
+                if (!dragDepth.current) setDragging(false);
+              }}
+              onDrop={event => {
+                if (!event.dataTransfer.types.includes('Files')) return;
+                event.preventDefault();
+                dragDepth.current = 0; setDragging(false);
+                if (workbench.busy || !detail || workbench.workspaceLoading) return;
+                const items = Array.from(event.dataTransfer.items);
+                const directories = items.filter(item => item.webkitGetAsEntry?.()?.isDirectory);
+                const files = items.length ? items.filter(item => item.kind === 'file' && !directories.includes(item))
+                  .map(item => item.getAsFile()).filter((file): file is File => !!file) : Array.from(event.dataTransfer.files);
+                setDropError(directories.length ? '暂不支持拖入文件夹，请选择其中的文件。' : '');
+                workbench.attachments.queue.add(files);
+              }}
               onSubmit={(event) => {
                 event.preventDefault();
                 latest();
                 void workbench.submit();
               }}
             >
+              {dragging && <div className="composer-drop-hint" role="status">松开以添加文件 · 支持多选</div>}
+              {dropError && <p role="alert" className="composer-drop-error">{dropError}</p>}
+              <input ref={attachmentInput} type="file" multiple hidden aria-label="选择对话附件"
+                disabled={!detail || workbench.busy || workbench.workspaceLoading}
+                onChange={event => {
+                  const files = Array.from(event.target.files ?? []);
+                  event.target.value = '';
+                  setDropError('');
+                  workbench.attachments.queue.add(files);
+                }} />
+              <ComposerAttachments items={workbench.attachments.items} disabled={workbench.busy}
+                remove={id => workbench.attachments.queue.remove(id)} retry={id => workbench.attachments.queue.retry(id)} />
               {workbench.pendingInput && !running && (
                 <button
                   className="secondary-button pending-retry"
@@ -470,7 +523,7 @@ export function WorkbenchShell() {
                     ? 'Agent 正在分析，可以先写下下一步问题…'
                     : selectedSample
                       ? '描述你想确认的问题，或要求一份完整分析报告…'
-                      : '选择或上传样本，描述你的分析目标…'
+                      : '输入问题，或拖入文件一起分析…'
                 }
                 rows={2}
               />
@@ -497,25 +550,18 @@ export function WorkbenchShell() {
                   <button
                     className="icon-button"
                     type="button"
-                    aria-label="上传分析样本"
-                    title="上传分析样本"
-                    disabled={!detail || running || workbench.busy}
-                    onClick={() => {
-                      document
-                        .getElementById('workspace-sample-upload')
-                        ?.click();
-                      setSidebar(true);
-                    }}
+                    aria-label="添加附件"
+                    title="选择或拖入多个文件，每个文件最多 100 MiB"
+                    disabled={!detail || workbench.workspaceLoading || workbench.busy}
+                    onClick={() => attachmentInput.current?.click()}
                   >
                     <Upload size={15} />
                   </button>
                   {detail && (
                     <SamplePicker
                       samples={detail.samples}
-                      selectedSample={selectedSample}
-                      onSelectSample={(sample) =>
-                        workbench.selectSample(sample?.sample_id ?? null)
-                      }
+                      selectedSamples={selectedSamples}
+                      onSelectSamples={workbench.selectSamples}
                       disabled={workbench.busy || running}
                     />
                   )}

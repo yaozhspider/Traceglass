@@ -16,6 +16,15 @@ Requested unavailable context fails with setup guidance. See
 [recorded crashes](https://github.com/morluto/rea/blob/main/docs/recorded-crashes.md)
 for exact upstream profiles, bounds and verification coverage.
 
+## Offline ELF layout
+
+Use `inspect_binary_layout` with an explicit local ELF path for file-backed
+sections, symbols, relocations, linkage names, and static mitigation inferences
+without opening a disassembler target. When that complete record is already
+retained, call `inspect_analysis_view` for a summary, mitigations or linkage
+facet, one section or symbol, or a stable page. Do not re-run the decoder to
+read a single object.
+
 ## Native targets
 
 After `open_binary`, use focused search, procedure, or function tools directly.
@@ -50,6 +59,15 @@ word; a source offset does not imply byte equality. Complete function body range
 use inclusive ends and can contain gaps. Do not treat the enclosing span as code.
 For packed targets, retain the original and separately derived artifact identities;
 decompiling an unpacking stub does not recover the unpacked program.
+
+When reading Objective-C dispatch metadata, distinguish class implementation
+methods from protocol requirements: class methods report null requirement
+flags, while decoded protocol declarations retain required and optional facts.
+Property attributes remain raw name/value tokens; use the property's
+`atomicity` field for the decoded `N` marker or the default atomic behavior.
+Null class/meta flags, ivar counts, atomicity, or read-only values mean the
+selected provider did not establish that fact. Symbol names alone do not prove
+that a class is a root class or has no ivars.
 
 ## Managed PE/CLI
 

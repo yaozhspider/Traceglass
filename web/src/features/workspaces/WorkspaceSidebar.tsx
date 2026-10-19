@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Plus,
   RotateCcw,
+  Trash2,
   Upload,
   X,
 } from 'lucide-react';
@@ -20,8 +21,8 @@ import type {
 import { formatBytes } from './workspaceData';
 
 type SampleSelection = {
-  selectedSample?: WorkspaceSample | null;
-  onSelectSample: (sample: WorkspaceSample | null) => void;
+  selectedSamples: WorkspaceSample[];
+  onSelectSamples: (ids: string[]) => void;
 };
 type Props = SampleSelection & {
   user: string;
@@ -29,6 +30,10 @@ type Props = SampleSelection & {
   workspaces: WorkspaceSummary[];
   sessionId?: string;
   onUploaded: (sample: WorkspaceSample) => void;
+  onDeleteSample: (sample: WorkspaceSample) => Promise<void>;
+  deleteDisabled: boolean;
+  deletingSample: string | null;
+  selectionDisabled: boolean;
   onOpenWorkspace: (id: string) => void;
   onHome: () => void;
   onOpenSession: (task: WorkspaceTask) => void;
@@ -40,9 +45,13 @@ export function WorkspaceSidebar({
   detail,
   workspaces,
   sessionId,
-  selectedSample,
-  onSelectSample,
+  selectedSamples,
+  onSelectSamples,
   onUploaded,
+  onDeleteSample,
+  deleteDisabled,
+  deletingSample,
+  selectionDisabled,
   onOpenWorkspace,
   onHome,
   onOpenSession,
@@ -102,6 +111,12 @@ export function WorkspaceSidebar({
       }
     }
   };
+  const [deleteTarget, setDeleteTarget] = useState<WorkspaceSample | null>(null);
+  useEffect(() => setDeleteTarget(null), [workspace.workspace_id]);
+  const toggleSample = (sample: WorkspaceSample) => onSelectSamples(
+    selectedSamples.some(item => item.sample_id === sample.sample_id)
+      ? selectedSamples.filter(item => item.sample_id !== sample.sample_id).map(item => item.sample_id)
+      : [...selectedSamples.map(item => item.sample_id), sample.sample_id]);
   const chooseFile = () => fileInput.current?.click();
 
   return (
@@ -196,34 +211,19 @@ export function WorkspaceSidebar({
             if (next) void upload(next);
           }}
         />
-        {sessionId && (
-          <p className="workspace-scope-note">选择其他样本将开始新的分析。</p>
-        )}
+        <p className="workspace-scope-note">可多选文件，随本次消息一起发送。</p>
         {samples.length ? (
           <div className="workspace-sample-list">
-            {samples.map((sample) => (
-              <button
-                className={`workspace-sample ${selectedSample?.sample_id === sample.sample_id ? 'selected' : ''}`}
-                key={sample.sample_id}
-                title={`${sample.name}\nSHA-256 ${sample.sha256}`}
-                aria-pressed={selectedSample?.sample_id === sample.sample_id}
-                onClick={() =>
-                  onSelectSample(
-                    selectedSample?.sample_id === sample.sample_id
-                      ? null
-                      : sample,
-                  )
-                }
-              >
-                <Binary size={17} />
-                <span>
-                  <strong>{sample.name}</strong>
-                  <small>
-                    {formatBytes(sample.size)} · {sample.sha256.slice(0, 8)}
-                  </small>
-                </span>
+            {samples.map(sample => <div className="workspace-sample-row" key={sample.sample_id}>
+              <button type="button" className={`workspace-sample ${selectedSamples.some(item => item.sample_id === sample.sample_id) ? 'selected' : ''}`}
+                title={`${sample.name}\nSHA-256 ${sample.sha256}`} disabled={selectionDisabled}
+                aria-pressed={selectedSamples.some(item => item.sample_id === sample.sample_id)} onClick={() => toggleSample(sample)}>
+                <Binary size={17} /><span><strong>{sample.name}</strong><small>{formatBytes(sample.size)} · {sample.sha256.slice(0, 8)}</small></span>
               </button>
-            ))}
+              <button type="button" className="icon-button workspace-sample-delete" disabled={deleteDisabled || !!deletingSample}
+                aria-label={`删除 ${sample.name}`} title={deleteDisabled ? '工作区仍有分析在执行，暂停后可删除' : '删除工作区文件'}
+                onClick={() => setDeleteTarget(sample)}><Trash2 size={14} /></button>
+            </div>)}
           </div>
         ) : (
           !uploading && (
@@ -277,6 +277,15 @@ export function WorkspaceSidebar({
           </p>
         )}
       </section>
+      {deleteTarget && <div className="sample-delete-backdrop"><section className="sample-delete-dialog" role="dialog" aria-modal="true" aria-label="删除文件确认">
+        <h2>删除文件？</h2><p>{deleteTarget.name}</p>
+        <p>将永久删除工作区中的此文件。历史对话和报告保留，但将无法再读取此路径。</p>
+        <div><button type="button" disabled={!!deletingSample} onClick={() => setDeleteTarget(null)}>取消</button>
+          <button type="button" disabled={deleteDisabled || !!deletingSample} onClick={() => {
+            void onDeleteSample(deleteTarget).then(() => setDeleteTarget(null));
+          }}>{deletingSample ? '正在删除…' : '确认删除'}</button></div>
+      </section></div>}
+
       <footer className="workspace-sidebar-footer">
         溯镜 <span>TRACEGLASS</span>
       </footer>
@@ -284,51 +293,32 @@ export function WorkspaceSidebar({
   );
 }
 
-export function SamplePicker({
-  samples,
-  selectedSample,
-  onSelectSample,
-  disabled,
-}: SampleSelection & { samples: WorkspaceSample[]; disabled?: boolean }) {
-  return (
-    <div className="workspace-sample-picker">
-      <label>
-        <Binary size={15} />
-        <select
-          aria-label="选择分析样本"
-          value={selectedSample?.sample_id ?? ''}
-          disabled={disabled}
-          onChange={(event) =>
-            onSelectSample(
-              samples.find(
-                (sample) => sample.sample_id === event.target.value,
-              ) ?? null,
-            )
-          }
-        >
-          <option value="">
-            {samples.length
-              ? '选择样本（可选）'
-              : '先在左侧上传样本，也可直接提问'}
-          </option>
-          {samples.map((sample) => (
-            <option key={sample.sample_id} value={sample.sample_id}>
-              {sample.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      {selectedSample && (
-        <button
-          type="button"
-          className="icon-button"
-          disabled={disabled}
-          aria-label="取消选择样本"
-          onClick={() => onSelectSample(null)}
-        >
-          <X size={14} />
-        </button>
-      )}
-    </div>
-  );
+export function SamplePicker({samples, selectedSamples, onSelectSamples, disabled}: SampleSelection & {
+  samples: WorkspaceSample[]; disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const picker = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const close = (event: PointerEvent) => {if (!picker.current?.contains(event.target as Node)) setOpen(false);};
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, []);
+  useEffect(() => {if (disabled) setOpen(false);}, [disabled]);
+  const ids = selectedSamples.map(sample => sample.sample_id);
+  return <div className="workspace-sample-picker sample-multi-picker" ref={picker}
+    onKeyDown={event => {if (event.key === 'Escape') setOpen(false);}}>
+    <button type="button" className="sample-picker-trigger" aria-label="选择分析样本" aria-expanded={open}
+      disabled={disabled} onClick={() => setOpen(!open)}>
+      <Binary size={15} /><span>{ids.length ? `已选 ${ids.length} 个文件` : '选择文件（可多选）'}</span><ChevronDown size={14} />
+    </button>
+    {open && <div className="sample-picker-popover" role="group" aria-label="可选分析样本">
+      <div className="sample-picker-actions"><span>工作区文件</span><button type="button" onClick={() => onSelectSamples([])}>清空选择</button></div>
+      {!samples.length && <p>先上传文件，再从这里选择。</p>}
+      {samples.map(sample => <label key={sample.sample_id}>
+        <input type="checkbox" checked={ids.includes(sample.sample_id)} disabled={disabled}
+          onChange={() => onSelectSamples(ids.includes(sample.sample_id) ? ids.filter(id => id !== sample.sample_id) : [...ids, sample.sample_id])} />
+        <span title={sample.name}>{sample.name}<small>{formatBytes(sample.size)} · {sample.sha256.slice(0, 8)}</small></span>
+      </label>)}
+    </div>}
+  </div>;
 }

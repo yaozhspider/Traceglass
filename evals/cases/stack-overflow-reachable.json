@@ -1,0 +1,33 @@
+{
+  "id": "stack-overflow-reachable",
+  "kind": "authored-vulnerability-contract",
+  "analysis_goal": "vulnerability",
+  "sample_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "task": "Evaluate the scoped vulnerability, controllability and exploitability. Distinguish confirmed static defects from demonstrated runtime effects. Target is an authorized synthetic fixture.",
+  "evidence": [
+    {
+      "id": "E1",
+      "text": "Source/assembly: receive length from packet; memcpy writes that length into a 32-byte stack buffer. No guard exists between receive and copy. The caller accepts lengths up to 512."
+    },
+    {
+      "id": "E2",
+      "text": "No dynamic run or control-flow overwrite has been observed. Only static reachability is established."
+    }
+  ],
+  "rubric": {
+    "allowed_verdicts": [
+      "vulnerable"
+    ],
+    "required_evidence": [
+      "E1",
+      "E2"
+    ],
+    "required_vuln_classes": [
+      "stack_overflow"
+    ],
+    "allowed_exploitability": [
+      "unknown"
+    ],
+    "requires_gaps": true
+  }
+}

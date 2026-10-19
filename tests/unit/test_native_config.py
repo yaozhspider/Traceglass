@@ -39,6 +39,20 @@ def test_settings_redact_key_and_validate_iteration_limit():
         Settings(max_iters=0)
 
 
+def test_rea_connection_limit_and_queue_timeout_are_configurable(monkeypatch):
+    import traceglass.config as config_module
+    monkeypatch.setattr(config_module, 'read_environment', lambda: ({}, None, {}))
+    assert Settings.from_env().rea_max_connections == 10
+    assert Settings.from_env().rea_queue_wait_seconds == 30
+    monkeypatch.setattr(config_module, 'read_environment', lambda: ({
+        'TRACEGLASS_REA_MAX_CONNECTIONS': '7', 'TRACEGLASS_REA_QUEUE_WAIT_SECONDS': '12.5'}, None, {}))
+    parsed = Settings.from_env()
+    assert parsed.rea_max_connections == 7 and parsed.rea_queue_wait_seconds == 12.5
+    for timeout in [0, -1, float('nan'), float('inf')]:
+        with pytest.raises(ValueError, match='REA'):
+            Settings(rea_queue_wait_seconds=timeout)
+
+
 def test_core_analysis_skills_work_without_legacy_checkout():
     paths = {Path(p).name: Path(p) for p in skill_paths(Settings())}
     assert {'dynamic-malware-analysis', 'malware-analysis', 'crypto-obfuscation-analysis',

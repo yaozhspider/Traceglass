@@ -61,6 +61,15 @@ def open_file(root: Path, path: str):
     return stream, info
 
 
+def remove_file(root: Path, path: str) -> None:
+    parts = relative_parts(path)
+    with directory(root, parts[:-1]) as parent:
+        info = os.stat(parts[-1], dir_fd=parent, follow_symlinks=False)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            raise FileNotFoundError("Not a regular workspace file")
+        os.unlink(parts[-1], dir_fd=parent)
+
+
 def list_directory(root: Path, path: str) -> dict:
     parts = relative_parts(path, allow_root=True)
     entries, visited, truncated = [], 0, False

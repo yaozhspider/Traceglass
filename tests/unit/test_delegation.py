@@ -58,7 +58,7 @@ async def _call(fixture, tool, **arguments) -> ToolResponse:
     async def execute(**kwargs):
         # Yield to competitors before the native read-modify-write operation.
         await asyncio.sleep(0)
-        supplied = dict(arguments)
+        supplied = json.loads(kwargs['tool_call'].input)
         if tool.is_state_injected:
             supplied['_agent_state'] = fixture.agent.state
         chunk = await tool(**supplied)
@@ -74,8 +74,11 @@ async def _create(fixture, number: int) -> ToolResponse:
     # Runtime assembly can create different middleware instances for one leader.
     fixture = copy.copy(fixture)
     fixture.middleware = fixture.policy.for_session('local', fixture.leader.id, fixture.session.id)
+    task_id = f'worker-task-{number}'
+    if not any(t.id == task_id for t in fixture.agent.state.tasks_context.tasks):
+        fixture.agent.state.tasks_context.tasks.append(Task(id=task_id, subject='独立证据', description='', metadata={}))
     return await _call(fixture, AgentCreate(**fixture.tool_args),
-                       name=f'worker-{number}', description='核查样本证据', prompt='报告样本哈希')
+                       name=f'worker-{number}', description='核查样本证据', prompt=f'task_id={task_id}\n报告样本哈希')
 
 
 async def _roster(fixture):
@@ -114,7 +117,8 @@ def test_native_invited_members_share_the_eight_member_budget(tmp_path: Path):
         await fixture.storage.upsert_session('local', record.id, SessionConfig(workspace_id='invited'))
         tool = AgentInvite(**fixture.tool_args, invitable_pool=[record])
         target = tool.input_schema['properties']['target']['enum'][0]
-        return await _call(fixture, tool, target=target, prompt='核查证据')
+        fixture.agent.state.tasks_context.tasks.append(Task(id=name, subject='独立证据', description='', metadata={}))
+        return await _call(fixture, tool, target=target, prompt=f'task_id={name}\n核查证据')
 
     async def run():
         async with _team(tmp_path) as fixture:
@@ -139,11 +143,48 @@ def test_creation_requires_an_unfinished_todo(tmp_path: Path, completed: bool):
                 fixture.agent.state.tasks_context.tasks[0].state = 'completed'
             else:
                 fixture.agent.state.tasks_context.tasks.clear()
-            result = await _create(fixture, 1)
+            result = await _call(fixture, AgentCreate(**fixture.tool_args), name='worker',
+                                 description='核查', prompt='task_id=1\n核查')
             assert result.state == ToolResultState.ERROR
             assert 'TodoWrite' in ''.join(block.text for block in result.content)
             assert not (await _roster(fixture)).data.members
 
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('change', ['missing_id', 'owned', 'blocked', 'completed'])
+def test_specific_delegation_task_must_be_free_and_ready(tmp_path, change):
+    async def run():
+        async with _team(tmp_path) as fixture:
+            task = fixture.agent.state.tasks_context.tasks[0]
+            if change == 'owned':
+                task.owner = 'other-worker'
+            if change == 'completed':
+                task.state = 'completed'
+            if change == 'blocked':
+                task.blocked_by = ['unresolved-dependency']
+            result = await _call(fixture, AgentCreate(**fixture.tool_args), name='worker',
+                description='核查', prompt='核查 Todo 1' if change == 'missing_id' else 'task_id=1\n核查')
+            assert result.state == ToolResultState.ERROR
+            assert not (await _roster(fixture)).data.members
+    asyncio.run(run())
+
+
+def test_concurrent_task_claim_has_one_owner_and_failed_create_releases_claim(tmp_path):
+    async def run():
+        async with _team(tmp_path) as fixture:
+            tool = AgentCreate(**fixture.tool_args)
+            async def claim(name):
+                return await _call(fixture, tool, name=name, description='核查', prompt='task_id=1\n核查')
+            results = await asyncio.gather(claim('a'), claim('b'))
+            assert [r.state for r in results].count(ToolResultState.SUCCESS) == 1
+            task = fixture.agent.state.tasks_context.tasks[0]
+            assert task.owner in {'a', 'b'} and task.state == 'in_progress'
+            fixture.agent.state.tasks_context.tasks.append(Task(id='2', subject='二次核查', description='', metadata={}))
+            duplicate = await _call(fixture, tool, name=task.owner, description='核查', prompt='task_id=2\n核查')
+            assert duplicate.state == ToolResultState.ERROR
+            assert fixture.agent.state.tasks_context.tasks[-1].owner is None
+            assert fixture.agent.state.tasks_context.tasks[-1].state == 'pending'
     asyncio.run(run())
 
 
@@ -185,6 +226,54 @@ def test_full_team_can_still_receive_work_through_native_team_say(tmp_path: Path
             assert result.state == ToolResultState.SUCCESS
             assert len((await _roster(fixture)).data.members) == 8
 
+    asyncio.run(run())
+
+
+def test_followup_task_binding_enforces_dependencies_and_releases_only_accepted_completion(tmp_path):
+    from traceglass.tools.todo import TodoWrite
+    async def run():
+        async with _team(tmp_path) as fixture:
+            assert (await _create(fixture, 0)).state == ToolResultState.SUCCESS
+            first = fixture.agent.state.tasks_context.tasks[-1]
+            first.state = 'completed'
+            followup = Task(id='next', subject='Followup', description='', metadata={}, blocked_by=['missing'])
+            fixture.agent.state.tasks_context.tasks.append(followup)
+            say = TeamSay(**fixture.tool_args)
+            blocked = await _call(fixture, say, to='worker-0', content='task_id=next\n核查下一条')
+            assert blocked.state == ToolResultState.ERROR and followup.owner is None
+            followup.blocked_by = []
+            assigned = await _call(fixture, say, to='worker-0', content='task_id=next\n核查下一条')
+            assert assigned.state == ToolResultState.SUCCESS
+            assert followup.owner == 'worker-0' and followup.state == 'in_progress'
+            released = []
+            async def release(*args):
+                released.append(args)
+            fixture.policy.release_completed = release
+            # A report is not a task acceptance event.
+            await _call(fixture, say, to='worker-0', content='完成消息')
+            assert released == []
+            completed = await _call(fixture, TodoWrite(), todos=[{'task_id': 'next', 'subject': 'Followup', 'status': 'completed'}])
+            assert completed.state == ToolResultState.SUCCESS
+            member = (await _roster(fixture)).data.members[0]
+            assert released == [('local', member.agent_id, member.session_id)]
+    asyncio.run(run())
+
+
+def test_followup_assignment_honors_real_native_taskupdate_permission_denial(tmp_path):
+    from agentscope.agent import Agent
+    from agentscope.permission import PermissionBehavior, PermissionRule
+    async def run():
+        async with _team(tmp_path) as fixture:
+            assert (await _create(fixture, 0)).state == ToolResultState.SUCCESS
+            fixture.agent.state.tasks_context.tasks[-1].state = 'completed'
+            task = Task(id='next', subject='Followup', description='', metadata={})
+            fixture.agent.state.tasks_context.tasks.append(task)
+            fixture.agent = Agent(name='leader', system_prompt='', model=None, state=fixture.agent.state)
+            fixture.agent.state.permission_context.deny_rules['TaskUpdate'] = [PermissionRule(
+                tool_name='TaskUpdate', rule_content=None, behavior=PermissionBehavior.DENY, source='userSettings')]
+            result = await _call(fixture, TeamSay(**fixture.tool_args), to='worker-0', content='task_id=next\n核查下一条')
+            assert result.state == ToolResultState.ERROR and 'TaskUpdate 权限' in result.content[0].text
+            assert task.owner is None and task.state == 'pending'
     asyncio.run(run())
 
 

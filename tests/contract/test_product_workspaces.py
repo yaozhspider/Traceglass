@@ -82,6 +82,17 @@ def test_workspace_upload_preview_download_and_restart_metadata(product):
     assert detail["samples"] == [sample]
 
 
+def test_uploaded_sample_can_be_deleted_from_catalog_and_workspace(product):
+    client, service, _ = product
+    wid = workspace(client)["workspace_id"]
+    sample = client.post(f"/product/workspaces/{wid}/samples", files={"file": ("remove-me.txt", b"temporary")}).json()
+    response = client.delete(f"/product/workspaces/{wid}/samples/{sample['sample_id']}")
+    assert response.status_code == 204, response.text
+    assert client.get(f"/product/workspaces/{wid}").json()["samples"] == []
+    assert client.get(f"/product/workspaces/{wid}/download", params={"path": sample["sample_path"]}).status_code == 404
+    assert not (service.workspace_root("owner", wid) / sample["sample_path"]).exists()
+
+
 def test_workspaces_isolate_files_and_owners(product):
     client, _, _ = product
     first, second = workspace(client, "A"), workspace(client, "B")
@@ -258,3 +269,35 @@ def test_chunked_upload_body_limit_is_also_enforced(product, monkeypatch):
     response = client.post(f"/product/workspaces/{wid}/samples", content=iter([payload]),
                            headers={"Content-Type": "multipart/form-data; boundary=boundary"})
     assert response.status_code == 413
+
+
+def test_delete_rejects_foreign_files_and_preserves_history(product):
+    client, service, _ = product
+    wid = workspace(client)['workspace_id']
+    other = workspace(client)['workspace_id']
+    sample = client.post(f'/product/workspaces/{wid}/samples', files={'file': ('keep.txt', b'hello')}).json()
+    url = f"/product/workspaces/{wid}/samples/{sample['sample_id']}"
+    sid = client.post(f'/product/workspaces/{wid}/sessions', json={'sample_id': sample['sample_id']}).json()['session_id']
+    assert client.delete(url, headers={'X-User-ID': 'another'}).status_code == 404
+    assert client.delete(f"/product/workspaces/{other}/samples/{sample['sample_id']}").status_code == 404
+    assert Path(sample['sandbox_path']).read_bytes() == b'hello'
+    assert client.delete(url).status_code == 204
+    assert client.portal.call(service.storage.get_session, 'owner', AGENT_ID, sid) is not None
+    assert client.delete(url).status_code == 404
+
+
+def test_delete_failure_keeps_catalog_and_rejects_symlink_parent(product, tmp_path):
+    client, service, _ = product
+    wid = workspace(client)['workspace_id']
+    sample = client.post(f'/product/workspaces/{wid}/samples', files={'file': ('keep.txt', b'hello')}).json()
+    root = service.workspace_root('owner', wid)
+    (root / 'samples').rename(root / 'saved')
+    outside = tmp_path / 'outside'
+    outside.mkdir()
+    victim = outside / Path(sample['sample_path']).name
+    victim.write_bytes(b'private')
+    (root / 'samples').symlink_to(outside, target_is_directory=True)
+    response = client.delete(f"/product/workspaces/{wid}/samples/{sample['sample_id']}")
+    assert response.status_code == 404
+    assert victim.read_bytes() == b'private'
+    assert client.get(f'/product/workspaces/{wid}').json()['samples'] == [sample]

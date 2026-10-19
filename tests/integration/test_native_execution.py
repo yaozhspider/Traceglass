@@ -126,10 +126,13 @@ def test_todo_delegation_runs_dynamic_default_worker_and_exposes_its_history(tmp
             final_text = "WORKER_COMPLETE"
         else:
             script = [
-                ("TodoWrite", {"todos": [{"subject": "核查样本摘要", "description": "读取 sample.bin 并返回 SHA-256", "owner": "string-decoder", "status": "in_progress"}]}),
+                ("TodoWrite", {"todos": [{"subject": "核查样本摘要", "description": "读取 sample.bin 并返回 SHA-256"}]}),
                 ("TeamCreate", {"name": "样本复核", "description": "独立复核样本摘要"}),
                 ("AgentCreate", {"name": "string-decoder", "description": "本次任务动态生成的字符串解密分析员，先核查样本摘要",
-                    "prompt": "独立读取 sample.bin 并报告摘要。对应 Todo 1。", "subagent_type": "default"}),
+                    "prompt": "task_id=1\n独立读取 sample.bin 并报告摘要。", "subagent_type": "default"}),
+                ("TaskUpdate", {"task_id": "1", "status": "completed"}),
+                ("TodoWrite", {"todos": [{"subject": "后续核查", "description": "复用成员核对摘要"}]}),
+                ("TeamSay", {"to": "string-decoder", "content": "task_id=2\n复核后续问题。"}),
             ]
             final_text = "已完成委派。"
         if len(results) < len(script):
@@ -170,7 +173,11 @@ def test_todo_delegation_runs_dynamic_default_worker_and_exposes_its_history(tmp
                 assert member["agent"]["data"]["name"] == "string-decoder"
                 assert "本次任务动态生成的字符串解密分析员" in member["agent"]["data"]["system_prompt"]
                 tasks = sessions[0]["session"]["state"]["tasks_context"]["tasks"]
-                assert [(task["subject"], task["owner"]) for task in tasks] == [("核查样本摘要", "string-decoder")]
+                assert [(task["subject"], task["owner"]) for task in tasks] == [
+                    ("核查样本摘要", "string-decoder"), ("后续核查", "string-decoder")]
+                leader_messages, _ = await app.state.storage.list_messages('local', session_id, limit=30)
+                leader_results = _results(leader_messages)
+                assert all(b.state == 'success' for b in leader_results), leader_results
                 assert member["session_id"] != session_id
 
                 async def completed_worker_history():
@@ -208,10 +215,10 @@ def test_app_enforces_todo_before_delegation_and_eight_member_limit(tmp_path: Pa
         if "你是团队" in messages[0].get_text_content():
             return ChatResponse(content=[TextBlock(text="WORKER_COMPLETE")], is_last=True)
         results = _results(messages)
-        script = [("TodoWrite", {"todos": [{"subject": "并行核查证据"}]})] if with_todo else []
+        script = [("TodoWrite", {"todos": [{"subject": f"独立核查证据 {i}"} for i in range(9)]})] if with_todo else []
         script += [("TeamCreate", {"name": "边界验证团队", "description": "测试成员数限制"})]
         script += [("AgentCreate", {"name": f"worker-{i}", "description": f"独立证据核查 {i}",
-                                   "prompt": "检查给定任务范围后结束。", "subagent_type": "default"}) for i in range(9)]
+                                   "prompt": f"task_id={i+1}\n检查给定任务范围后结束。", "subagent_type": "default"}) for i in range(9)]
         if len(results) < len(script):
             name, arguments = script[len(results)]
             return _tool(name, arguments, len(results))

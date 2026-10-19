@@ -95,10 +95,16 @@ For a real binary use the separate static mode (requires configured REA kit):
 The binary is copied to a temporary read-only input and gets an isolated native REA
 connection. Only an allowlist of static REA tools is exposed: no Bash, target imports,
 dynamic execution, original workspace mutation or live user-session continuation.
-The underlying AgentScope permission bypass is confined to these evaluation tools.
+Native default permissions remain active, with scoped allow rules for static REA
+operations; a guard denies tools outside the static allowlist for main and workers.
 The final evidence/addresses require independent review; binary runs receive no
 automatic “passed malware analysis” label. This targeted single-agent analysis does
 not measure the whole multi-agent product or full PyInstaller extraction pipeline.
+
+For independent graded fixtures, use `--binary-manifest` after building the
+authored object fixtures; `--product` selects the actual native product/task/team
+composition. These results remain separate from replay and ungraded binary mode.
+See [Evaluation](EVALUATION.md) for manifests, cost metrics and known live limits.
 
 ## Adding a badcase
 

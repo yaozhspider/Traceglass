@@ -5,6 +5,7 @@ No model is called and the sample is not executed. Use a dedicated test workspac
 """
 import argparse
 import asyncio
+import hashlib
 import json
 from pathlib import Path
 from uuid import uuid4
@@ -60,6 +61,19 @@ async def verify(args):
         result = await call('procedure_pseudo_code', procedure='main')
         assert result.metadata['traceglass_archive']['archive_status'] == 'saved'
         await call('close_binary')
+        if args.check_layout:
+            await call('inspect_binary_layout', path='/workspace/' + relative.as_posix())
+            layout = report['operations']['inspect_binary_layout']['result']
+            assert layout['normalized_result']['artifact']['sha256'] == hashlib.sha256(sample.read_bytes()).hexdigest()
+            sections = layout['normalized_result']['sections']
+            assert any(section['name']['display'] == '.text' for section in sections)
+            await call('inspect_analysis_view',
+                       source={'kind': 'retained-evidence', 'evidence_id': layout['evidence_id']},
+                       view={'kind': 'page', 'collection': 'sections', 'offset': 0, 'limit': 2})
+            view = report['operations']['inspect_analysis_view']['result']['normalized_result']
+            assert view['parent_evidence_id'] == layout['evidence_id']
+            assert view['items'] == sections[:2]
+            assert view['coverage']['total'] == len(sections)
         # Read back through a new store connection to verify durable writes.
         records = EvidenceStore(args.archive).list(args.user, args.workspace_id)['items']
         report['archive_records'] = [r['id'] for r in records if r['session_id'] == session]
@@ -81,6 +95,7 @@ if __name__ == '__main__':
     parser.add_argument('--workspace-id', required=True)
     parser.add_argument('--user', default='local')
     parser.add_argument('--provider', default='ghidra', choices=['ghidra', 'hopper'])
+    parser.add_argument('--check-layout', action='store_true', help='Also verify the optional pwntools ELF provider and retained evidence pagination')
     parser.add_argument('--archive', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     asyncio.run(verify(parser.parse_args()))

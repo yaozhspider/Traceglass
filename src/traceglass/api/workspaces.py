@@ -1,11 +1,14 @@
 """Product file/navigation endpoints; AgentScope retains all chat execution."""
 from __future__ import annotations
 
+import asyncio
 from pathlib import PurePosixPath
 from typing import Literal
 from urllib.parse import quote
 
 from agentscope.app.deps import get_current_user_id, get_resource_access_service
+from agentscope.app.deps import get_chat_run_registry, get_message_bus, get_session_service
+from agentscope.app.message_bus import MessageBusKeys
 from agentscope.app.storage import ChatModelConfig
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.routing import APIRoute
@@ -90,7 +93,7 @@ async def _checked(operation):
         raise HTTPException(409, "File changed while reading; try again") from exc
 
 
-def create_workspace_router(service: ProductWorkspaceService) -> APIRouter:
+def create_workspace_router(service: ProductWorkspaceService, accounts=None) -> APIRouter:
     router = APIRouter(prefix="/product/workspaces", tags=["product-workspaces"], route_class=WorkspaceRoute)
 
     @router.get("")
@@ -109,7 +112,12 @@ def create_workspace_router(service: ProductWorkspaceService) -> APIRouter:
     async def create_session(workspace_id: str, body: NewWorkspaceSession,
                              user_id: str = Depends(get_current_user_id),
                              access=Depends(get_resource_access_service)):
-        await access.resolve_agent(user_id, service.agent_id)
+        await access.resolve_agent(user_id, service.agent_id_for(user_id))
+        if body.chat_model_config is None and accounts is not None:
+            from traceglass.accounts.models import chat_config
+            profile = await asyncio.to_thread(accounts.model, user_id)
+            if profile:
+                body.chat_model_config = ChatModelConfig.model_validate(chat_config(profile))
         if body.chat_model_config is not None:
             await access.resolve_credential(user_id, body.chat_model_config.credential_id)
         return await _checked(service.create_session(user_id, workspace_id, body.name, body.sample_id,
@@ -122,6 +130,27 @@ def create_workspace_router(service: ProductWorkspaceService) -> APIRouter:
             return await _checked(service.upload(user_id, workspace_id, file))
         finally:
             await file.close()
+
+    @router.delete("/{workspace_id}/samples/{sample_id}", status_code=204)
+    async def delete_sample(workspace_id: str, sample_id: str,
+                            user_id: str = Depends(get_current_user_id),
+                            registry=Depends(get_chat_run_registry), bus=Depends(get_message_bus),
+                            native_sessions=Depends(get_session_service)):
+        from .runtime import _team_member_statuses
+        detail = await _checked(service.detail(user_id, workspace_id))
+        for session in detail['tasks']:
+            sid = session['session_id']
+            task = registry.get(sid)
+            if ((task is not None and not task.done())
+                    or await bus.is_locked(MessageBusKeys.session_lock(sid))
+                    or await native_sessions.get_session_status(user_id, session['agent_id'], sid) != 'idle'):
+                raise HTTPException(409, '工作区仍有分析在执行，请暂停全部任务后再删除文件。')
+            statuses = await _team_member_statuses(service.storage, registry, bus, native_sessions,
+                                                   user_id, session['agent_id'], sid)
+            if any(status != 'idle' for status in statuses.values()):
+                raise HTTPException(409, '工作区仍有子 Agent 在执行，请暂停全部任务后再删除文件。')
+        await _checked(service.delete_sample(user_id, workspace_id, sample_id))
+        return None
 
     @router.get("/{workspace_id}/files")
     async def list_files(workspace_id: str, path: str = Query(default=""),

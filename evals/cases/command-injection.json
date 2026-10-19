@@ -1,0 +1,33 @@
+{
+  "id": "command-injection",
+  "kind": "authored-vulnerability-contract",
+  "analysis_goal": "vulnerability",
+  "sample_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "task": "Evaluate the scoped vulnerability, controllability and exploitability. Distinguish confirmed static defects from demonstrated runtime effects. Target is an authorized synthetic fixture.",
+  "evidence": [
+    {
+      "id": "E1",
+      "text": "Reviewed source: external request field is appended unquoted to a shell command passed to system; no filter, validation or escaping on the connected path. Shell metacharacters can enter syntax."
+    },
+    {
+      "id": "E2",
+      "text": "Authorized source review only. Target runtime, privileges and actual command effects have not been tested."
+    }
+  ],
+  "rubric": {
+    "allowed_verdicts": [
+      "vulnerable"
+    ],
+    "required_evidence": [
+      "E1",
+      "E2"
+    ],
+    "required_vuln_classes": [
+      "command_injection"
+    ],
+    "allowed_exploitability": [
+      "unknown"
+    ],
+    "requires_gaps": true
+  }
+}

@@ -66,7 +66,7 @@ export function BlockView({
   running?: boolean;
 }) {
   if (block.type === 'text' && foldSample && isSampleContext(block.text))
-    return <RawDetails label="样本附件 · 路径与 SHA-256" value={block.text} />;
+    return <RawDetails label="对话附件 · 文件与路径" value={block.text} />;
   if (block.type === 'text') return <Markdown text={block.text ?? ''} />;
   if (block.type === 'hint' && block.source === BUDGET_CLOSEOUT_SOURCE)
     return <p className="reply-status">已进入阶段性收尾 · 根据已有证据总结结论与未完成事项</p>;

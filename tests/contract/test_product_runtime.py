@@ -315,3 +315,17 @@ def test_runtime_member_projection_requires_owned_team_and_session_back_referenc
     assert queried == [('owner', workers['visible'].id)]
     assert client.get('/product/runtime', params={'workspace_id': wid},
                       headers={'X-User-ID': 'another'}).status_code == 404
+
+
+@pytest.mark.parametrize('locked', [False, True])
+def test_sample_delete_rejects_active_analysis(runtime, locked):
+    client, app, _, _, wid = runtime
+    sid = _session(client, wid)
+    sample = client.post(f'/product/workspaces/{wid}/samples', files={'file': ('keep.txt', b'hello')}).json()
+    task, release = client.portal.call(_register, app, sid, locked)
+    try:
+        response = client.delete(f"/product/workspaces/{wid}/samples/{sample['sample_id']}")
+        assert response.status_code == 409, response.text
+        assert Path(sample['sandbox_path']).read_bytes() == b'hello'
+    finally:
+        client.portal.call(_finish, task, release)

@@ -10,6 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
   "agentscope[service,storage-sql]==2.0.6",
   "aiosqlite>=0.20,<1",
+  "cryptography>=43,<47",
   "httpx[socks]>=0.27,<1",
   "python-multipart>=0.0.18,<1",
   "python-dotenv>=1,<2",
@@ -21,6 +22,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+windows = ["pyvmomi>=8,<10"]
 test = [
   "pytest>=8,<10",
   "httpx>=0.27,<1",
@@ -31,9 +33,13 @@ traceglass = "traceglass.api.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+exclude = ["*.__pycache__", "*.__pycache__.*"]
 
 [tool.setuptools.package-data]
 traceglass = ["resources/skills/**/*", "resources/skill-sources.json", "resources/rea-release.json"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["*.pyc", "*.pyo", "**/__pycache__/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

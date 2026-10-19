@@ -1,11 +1,30 @@
 ---
 name: sandbox-dynamic-debugging
-description: 当用户明确要求运行、调试、跟踪样本，或需要验证静态假设时，在已注册的 AgentScope Runtime Sandbox 中执行授权的本地程序。纯静态分析或解读已有 CAPE/DDAN 报告时不要使用。
+description: 当用户要求运行、调试、跟踪样本，或已授权通过运行验证静态假设时使用。按目标平台选择已注册的 Windows 虚拟机 x64dbg/x32dbg 或 Linux Runtime Sandbox。纯静态分析或解读已有 CAPE/DDAN 报告时不要使用。
 ---
 
 # 沙箱动态调试
 
-所有样本运行都必须通过 `sandbox` MCP。禁止使用工作区 Bash、控制台容器或宿主机直接执行样本。
+样本运行只通过当前账号已注册且获授权的动态通道。禁止使用普通工作区 Bash、
+静态 REA 容器、控制台容器或宿主机直接执行样本。
+
+## 进入条件与平台选择
+
+先做静态身份核验，记录样本哈希、格式、架构与一个需要运行验证的问题。当前任务
+已明确允许动态分析或运行验证时，沿用该授权，不对每个断点或单步重复询问。
+泛称“分析/全面分析”不自动等于允许运行；用户仅要求静态分析、只提供已有行为日志，
+或明确禁止执行时，继续静态分析或日志解析。
+
+| 目标与条件 | 动态通道 | 下一步 |
+|---|---|---|
+| Windows 原生 x64/x86 EXE，任务允许动态验证 | `windows_analysis` 的 Windows 工具 | 主动搜索并检查能力，读取 [Windows 操作流程](references/windows-debugging.md) |
+| Linux ELF/脚本，任务允许动态验证 | 已绑定的 `sandbox` MCP | 使用下方 Linux Runtime Sandbox 流程 |
+| DLL、驱动、ARM64、APK、托管专用调试等 | 需另有适用的注册工具 | 不套用 EXE 路线，不支持时保留动态分支 blocked |
+
+工具组未激活时先搜索并激活。Windows 工具可用时，不因缺少 Linux `sandbox` MCP
+而跳过 Windows 动调；已安装工具、注册 schema 和实际调试会话成功是不同状态。
+连接失败、被其他任务占用、执行权限/基线/调试依赖缺失时记录具体缺口并继续静态分析。
+恢复 Windows 快照会丢弃来宾改动，需当前任务明确允许恢复；已有恢复授权可沿用。
 
 ## 加解密/混淆路由提醒（必须检查）
 
@@ -19,7 +38,10 @@ Skill：本 Skill 继续负责沙箱路径校验、执行授权、快照、超�
 明显的编码/解码循环、熵异常、解密后再执行或解压缩行为。发现信号后，先声明已加载
 辅助 Skill，再继续执行实验，不得只凭字符串命中直接认定算法。
 
-## 与静态分析工具的边界
+## Linux Runtime Sandbox 的工具与路径
+
+本节和后续 Linux 标准流程只适用于 `sandbox` MCP；Windows 使用上方参考流程，
+不套用 `/samples/...`、Linux shell、GDB 或 `archive_sandbox_experiment` 的路径约定。
 
 Runtime Sandbox 的 shell 主要用于授权的动态实验、Python 复现和调试，不保证包含
 Console 镜像中的全部静态分析 CLI。`capa` 和 FLOSS 应调用已注册的
@@ -37,11 +59,7 @@ Console 镜像中的全部静态分析 CLI。`capa` 和 FLOSS 应调用已注册
 不要把任意 `/output` 路径通过字符串替换改成 `/workspace`。静态工具仍使用挂载根目录相对路径，例如
 `uploads/<owner>/<hash>_<name>`；不要把 `/samples/...` 传给静态工具。
 
-## 进入条件
-
-只有在用户明确要求动态执行/调试，或授权使用运行时验证静态假设时进入本流程。执行前先写出要验证的假设；没有授权时只提出建议，不运行样本。
-
-## 自主补工具与持久化
+## Linux 自主补工具与持久化
 
 现成工具不支持目标格式、输出不足或不能验证假设时，可以自行编写解析器、
 提取器、解码器或验证脚本。语言按目标语义和沙箱实际工具链选择：Python、Go、
@@ -66,7 +84,7 @@ Web 服务中 `/workspace` 绑定到 `analysis_case_info` 返回的 `sandbox_exp
 普通静态反编译、CFG、笔记与报告可用 `save_analysis_artifact` 保存，随后
 `record_evidence(summary, artifact_path, confidence, source)` 关联实际归档文件。
 
-## 标准流程
+## Linux 标准流程
 
 1. 确认工具来自已绑定的 sandbox MCP；Web 可能只展示末尾的 `run_shell_command` 或
    `run_ipython_cell`，应以实际注册 schema 与 MCP 来源为准，不能把本地 Bash 当成沙箱。
@@ -91,9 +109,9 @@ Web 服务中 `/workspace` 绑定到 `analysis_case_info` 返回的 `sandbox_exp
 
 1. **提出假设**：写明候选算法（AES、RC4、TEA/XTEA、XOR 或自定义算法）及依据。
 2. **找证据**：检查加密 API、常量/S-box、块大小、轮数、循环结构、调用者和缓冲区。`crypto-detector` 只对源码、strings 或反编译文本生成候选线索，命中不等于二进制确实使用了该算法。
-3. **执行实验**：复制样本、创建 before 快照，每次只做一个有界的 gdb/Frida/angr/r2 实验，记录断点、输入、输出、超时和退出状态。
+3. **执行实验**：按已选平台流程，每次只做一个有界实验。Windows 使用本任务的 x64dbg/x32dbg 会话；Linux 使用已绑定的 GDB/Frida/angr/r2。记录断点、输入、输出、超时和实际状态。
 4. **验证结果**：用明文、密钥、IV、中间值、长度对齐、哈希或第二种实现交叉验证。
-5. **失败回滚**：出现矛盾或实验失败时恢复快照，撤销 hook、断点和 patch，再从新的假设开始，不要叠加未经验证的修改。
+5. **失败处理**：保留原始失败结果，先结束本任务的调试操作并回收工件，再按当前任务已有的恢复授权回滚；未获恢复授权时记录待恢复，不自动恢复 Windows 快照。
 
 ### 编写复现代码并恢复明文
 
@@ -108,7 +126,8 @@ Web 服务中 `/workspace` 绑定到 `analysis_case_info` 返回的 `sandbox_exp
 模式、padding、key/IV 派生和输出长度。标准密码库只能作为对照，不能单凭
 库函数调用声称样本使用了该算法。
 
-一次实验只改变一个变量。脚本和样本都只能通过 sandbox MCP 执行。完成后调用
+一次实验只改变一个变量。复现脚本只能通过支持该语言的已注册授权通道执行；
+Windows 固定 EXE/debug profile 不能用于任意 Python 或 shell。Linux 实验完成后调用
 `record_crypto_experiment`，传入 `artifact_dir`、假设、算法、命令、执行状态和
 `validation_json`，复制整个实验目录并生成关联证据。只有
 满足格式/魔数、长度、动态中间值或第二组输入等独立条件时，才将置信度升级为
@@ -128,7 +147,9 @@ Web 服务中 `/workspace` 绑定到 `analysis_case_info` 返回的 `sandbox_exp
 - 覆盖范围、工具限制和未验证部分。
 - 每次加解密实验的源码、输入/输出、命令、退出状态、哈希和验证等级。
 
-实验日志放在 `/workspace/case-<id>/`，置信度使用 `candidate`（候选）、`supported`（有支持）或 `validated`（已验证）。详细命令模板见 `references/crypto-experiment-playbook.md`。
+Windows 原始结果通过 `WindowsCollectResults` 保存到 `reports/windows/<job_id>/`；
+Linux 实验日志放在 `/workspace/case-<id>/`。置信度使用 `candidate`（候选）、
+`supported`（有支持）或 `validated`（已验证）。Linux 命令模板见 `references/crypto-experiment-playbook.md`。
 
 结构化实验记录写入当前 case 的 `experiments.jsonl`，关联证据写入
 `evidence.jsonl`。最终报告必须引用生成的证据 ID。

@@ -1,0 +1,30 @@
+{
+  "allowed_verdicts": [
+    "vulnerable"
+  ],
+  "allowed_exploitability": [
+    "unknown"
+  ],
+  "required_vuln_classes": [
+    "command_injection"
+  ],
+  "requires_gaps": true,
+  "required_facts": [
+    {
+      "category": "entry",
+      "pattern": "handle_request|request"
+    },
+    {
+      "category": "sink",
+      "pattern": "system|shell"
+    },
+    {
+      "category": "constant",
+      "pattern": "/usr/bin/printf"
+    },
+    {
+      "category": "constraint",
+      "pattern": "(unquoted|unescaped|metacharacter|shell.*syntax)"
+    }
+  ]
+}

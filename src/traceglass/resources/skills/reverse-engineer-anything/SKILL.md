@@ -2,8 +2,8 @@
 name: reverse-engineer-anything
 description: Reverse engineer native, managed, Electron/JavaScript, packaged, firmware, and browser targets with REA. Use shipped-artifact or requested runtime evidence to explain features, compare versions, decompile code, or guide a reconstruction. Skip REA for ordinary source-repository architecture analysis.
 metadata:
-  version: "33"
-  tool_count: 138
+  version: "34"
+  tool_count: 139
 ---
 
 # REA
@@ -29,10 +29,10 @@ advertise retained references.
 When tools are absent or registration is stale:
 
 1. Diagnose without changing files. For Codex, run
-   `npx -y rea-agents@latest doctor --client codex --json`. Substitute the current
+   `npx -y rea-agents@6.3.0 doctor --client codex --json`. Substitute the current
    supported client: `claude_code`, `claude_desktop`, `codex`, `cursor`,
    `gemini_cli`, `windsurf`, `devin`, `opencode`, `antigravity`, `copilot_cli`,
-   `commandcode`, `vscode`, `grok_build`, or `grok_bot`. `grok_bot` has no local
+   `commandcode`, `vscode`, `grok_build`, `omp`, or `grok_bot`. `grok_bot` has no local
    file registration: doctor reports the Grok Bot chat step, and setup does not
    write `mcp.json`. If the client is unknown, use `doctor --json` and
    inspect its registration results before choosing a setup scope.
@@ -43,12 +43,12 @@ When tools are absent or registration is stale:
    that provider: static JavaScript inspection needs neither Hopper nor Ghidra,
    and Android inspection has separate bring-your-own JADX/Java prerequisites.
 3. For a configuration repair, prepare the read-only plan:
-   `npx -y rea-agents@latest setup --client codex --dry-run --json`.
+   `npx -y rea-agents@6.3.0 setup --client codex --dry-run --json`.
    Use the current client's ID, show its exact proposed paths, backups, and
    changes, and obtain approval before setup writes configuration or installs
    Hopper. Setup normally installs the matching bundled skill too; include that
    replacement in the reviewed plan. After approval, apply the same scope with
-   `npx -y rea-agents@latest setup --client codex --yes`. Add `--install-hopper`
+   `npx -y rea-agents@6.3.0 setup --client codex --yes`. Add `--install-hopper`
    only if that separate installation was needed and explicitly approved.
 4. Restart/reconnect the affected agent. Verify that REA tools actually appear
    in the session, then resume the original investigation. If they remain
@@ -63,7 +63,7 @@ with a version-pinned `rea-agents` package or continue through the CLI.
 A concrete CLI fallback for an operator-supplied JavaScript tree or ASAR is:
 
 ```bash
-npx -y rea-agents@latest analyze-javascript-application /absolute/path/to/app --json
+npx -y rea-agents@6.3.0 analyze-javascript-application /absolute/path/to/app --json
 ```
 
 No MCP registration or native engine is required. Read the returned Evidence,
@@ -147,12 +147,13 @@ Start with the default result and use its inline Evidence and graph context.
 Do not repeat an identical tool call. Make a focused follow-up only when the
 returned result leaves a specific question unanswered.
 
-If MCP reports `resource_constraint` with `details.resource: "transport"`, use
-its reported same-session Evidence reference with a focused application tool,
-or call `export_evidence_bundle` to write the complete session to a selected
-path. The analysis remains complete in the ledger; avoid repeating it merely
-to request the same oversized response. Complete CLI JSON output also streams
-without a single MCP frame.
+If MCP reports `resource_constraint` with `details.resource: "transport"`, call
+`inspect_analysis_view` with its reported same-session Evidence reference for a
+summary, one section/module, or a stable page. Use `trace_application_feature`
+once a seed is known, or call `export_evidence_bundle` to write the complete
+session to a selected path. The analysis remains complete in the ledger; avoid
+repeating it merely to request the same oversized response. Complete CLI JSON
+output also streams without a single MCP frame.
 
 Every conclusion must distinguish observations, inferences, and unknowns. Cite
 Evidence IDs, preserve limitations and incomplete coverage, and never imply

@@ -1,0 +1,30 @@
+{
+  "host": "192.168.113.37",
+  "vm_id": "48",
+  "vm_name": "yaozh",
+  "esxi_user": "root",
+  "esxi_password_env": "TRACEGLASS_ESXI_PASSWORD",
+  "guest_user": "YAOZH",
+  "guest_password_env": "TRACEGLASS_WINDOWS_PASSWORD",
+  "certificate": "esxi.pem",
+  "allowed_users": ["REPLACE_WITH_TRACEGLASS_USER_ID"],
+  "guest_root": "C:\\Traceglass",
+  "allow_execution": false,
+  "baseline_snapshot": null,
+  "max_concurrent_jobs": 8,
+  "auto_reset_on_idle": false,
+  "max_timeout": 300,
+  "max_input_bytes": 104857600,
+  "max_artifact_bytes": 33554432,
+  "tools": {
+    "python": "C:\\Traceglass\\python-xauto-0.9.2\\Scripts\\python.exe",
+    "die": "C:\\Tools\\die\\diec.exe",
+    "rizin": "C:\\Tools\\rizin-win-installer-vs2019_static-64\\bin\\rizin.exe",
+    "upx": "C:\\Tools\\upx-5.2.1-win64\\upx.exe",
+    "wasm2wat": "C:\\Tools\\wabt-1.0.42\\bin\\wasm2wat.exe",
+    "java": "C:\\Tools\\jdk-21.0.12.1+1\\bin\\java.exe",
+    "jadx_jar": "C:\\Tools\\jadx\\lib\\jadx-1.5.6-all.jar",
+    "x64dbg": "C:\\Tools\\x64dbg\\release\\x64\\x64dbg.exe",
+    "x32dbg": "C:\\Tools\\x64dbg\\release\\x32\\x32dbg.exe"
+  }
+}

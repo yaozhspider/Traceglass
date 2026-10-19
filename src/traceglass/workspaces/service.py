@@ -19,17 +19,21 @@ from .store import WorkspaceStore, timestamp
 class ProductWorkspaceService:
     def __init__(self, data_dir: Path, storage: StorageBase,
                  workspace_manager: ProductLocalWorkspaceManager | ProductDockerWorkspaceManager,
-                 agent_id: str):
+                 agent_id: str, agent_resolver=None):
         self.data_dir = Path(data_dir)
         self.storage = storage
         self.manager = workspace_manager
         self.agent_id = agent_id
+        self.agent_resolver = agent_resolver
         self.catalog = WorkspaceStore(self.data_dir / "product-workspaces.sqlite3")
         self.manager.product_store = self.catalog
         self._import_locks: dict[tuple[str, str], asyncio.Lock] = {}
 
+    def agent_id_for(self, user_id: str) -> str:
+        return self.agent_resolver(user_id) if self.agent_resolver else self.agent_id
+
     async def _sessions(self, user_id: str):
-        sessions = await self.storage.list_sessions(user_id, self.agent_id)
+        sessions = await self.storage.list_sessions(user_id, self.agent_id_for(user_id))
         visible = []
         for session in sessions:
             if session.team_id:
@@ -86,13 +90,13 @@ class ProductWorkspaceService:
                 key = f"{user_id}\0{workspace_id}\0{sample['sample_path']}"
                 sample["sample_id"] = "sample-" + hashlib.sha256(key.encode()).hexdigest()[:32]
                 sample["reverse_sample_path"] = sample["sample_path"].removeprefix("samples/")
-                sample["sandbox_path"] = self.manager.agent_path(user_id, self.agent_id, workspace_id, sample["sample_path"])
+                sample["sandbox_path"] = self.manager.agent_path(user_id, self.agent_id_for(user_id), workspace_id, sample["sample_path"])
             await asyncio.to_thread(self.catalog.finish_legacy_import, user_id, workspace_id, samples, truncated)
             return truncated
 
     def workspace_root(self, user_id: str, workspace_id: str) -> Path:
         self.catalog.get(user_id, workspace_id)
-        root = self.manager.host_root(user_id, self.agent_id, workspace_id)
+        root = self.manager.host_root(user_id, self.agent_id_for(user_id), workspace_id)
         # Historical Docker managers accepted user IDs as path components.
         # Product routes never allow a legacy path to escape the trusted base.
         if not root.resolve().is_relative_to(Path(self.manager._basedir).resolve()):
@@ -109,20 +113,20 @@ class ProductWorkspaceService:
             if not any(sample["sample_id"] == sample_id for sample in samples):
                 raise LookupError("Sample not found in this workspace")
         session = await self.storage.upsert_session(
-            user_id=user_id, agent_id=self.agent_id,
+            user_id=user_id, agent_id=self.agent_id_for(user_id),
             config=SessionConfig(workspace_id=workspace_id, name=name, chat_model_config=chat_model_config),
             state=AgentState(permission_context=PermissionContext(mode=PermissionMode(permission_mode))),
             session_id=uuid4().hex,
         )
         await asyncio.to_thread(self.catalog.bind_task, user_id, workspace_id, session.id, sample_id)
-        return {"session_id": session.id, "agent_id": self.agent_id, "workspace_id": workspace_id}
+        return {"session_id": session.id, "agent_id": self.agent_id_for(user_id), "workspace_id": workspace_id}
 
     async def upload(self, user_id: str, workspace_id: str, upload: UploadFile) -> dict:
         root = await asyncio.to_thread(self.workspace_root, user_id, workspace_id)
         # Existing sessions can precede their first native workspace access.
         await asyncio.to_thread(root.mkdir, parents=True, exist_ok=True)
         sample = await files.upload_sample(root, upload)
-        sample.update(sandbox_path=self.manager.agent_path(user_id, self.agent_id, workspace_id, sample["sample_path"]),
+        sample.update(sandbox_path=self.manager.agent_path(user_id, self.agent_id_for(user_id), workspace_id, sample["sample_path"]),
                       created_at=timestamp())
         try:
             await asyncio.to_thread(self.catalog.add_sample, user_id, workspace_id, sample)
@@ -132,6 +136,17 @@ class ProductWorkspaceService:
             await asyncio.to_thread((root / sample["sample_path"]).unlink, missing_ok=True)
             raise
         return sample
+
+    async def delete_sample(self, user_id: str, workspace_id: str, sample_id: str) -> None:
+        root = await asyncio.to_thread(self.workspace_root, user_id, workspace_id)
+        def remove_bytes(path: str) -> None:
+            try:
+                files.remove_file(root, path)
+            except FileNotFoundError as exc:
+                # Only an absent file is success, not a symlink/non-file.
+                if exc.errno != 2:
+                    raise
+        await asyncio.to_thread(self.catalog.remove_sample, user_id, workspace_id, sample_id, remove_bytes)
 
     async def list_files(self, user_id: str, workspace_id: str, path: str = "") -> dict:
         root = await asyncio.to_thread(self.workspace_root, user_id, workspace_id)

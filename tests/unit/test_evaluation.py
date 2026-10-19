@@ -39,3 +39,34 @@ def test_comparison_keeps_invalid_and_ungraded_binary_runs_visible(tmp_path):
     result=summarize(tmp_path)['cases']['case']
     assert result['runs']==3 and result['invalid']==1 and result['ungraded']==1
     assert result['rubric_failures']==1 and result['rubric_passes']==0
+
+
+def test_vulnerability_rubric_checks_exploitability_separately_from_verdict():
+    case = {'evidence': [{'id': 'E1'}], 'rubric': {'allowed_verdicts': ['vulnerable'],
+            'required_evidence': ['E1'], 'allowed_exploitability': ['unknown'],
+            'required_vuln_classes': ['stack_overflow']}}
+    output = dict(verdict='vulnerable', evidence_refs=['E1'], dataflow='packet to unbounded copy',
+                  authorization='authorized fixture', privilege='test process', gaps=['exploit not tested'],
+                  next_steps=[], explanation='reachable overwrite', vuln_classes=['stack_overflow'],
+                  exploitability='unknown')
+    assert score(case, output)['passed']
+    output['exploitability'] = 'exploitable'
+    assert 'unsupported_exploitability' in score(case, output)['failures']
+    output['vuln_classes'] = []
+    assert 'missing_vulnerability_class' in score(case, output)['failures']
+
+
+def test_real_binary_scoring_keeps_fact_recall_and_unsupported_citations_separate():
+    from traceglass.evaluation.scoring import score_binary
+    case = {'rubric': {'allowed_verdicts': ['vulnerable'], 'allowed_exploitability': ['unknown'],
+        'required_facts': [{'category': 'constraint', 'pattern': r'32.*(unchecked|unbounded)'}]}}
+    assessment = dict(verdict='vulnerable', evidence_refs=['tgev_valid'],
+        dataflow='input -> memcpy', authorization='fixture', privilege='process', gaps=['dynamic'],
+        next_steps=[], explanation='unbounded copy', facts=[{'category':'constraint',
+        'statement':'32-byte buffer receives unchecked length', 'evidence_refs':['tgev_valid']}])
+    result = score_binary(case, assessment, {'tgev_valid'})
+    assert result['passed'] and result['key_fact_recall'] == 1
+    assessment['facts'][0]['evidence_refs'] = ['invented']
+    result = score_binary(case, assessment, {'tgev_valid'})
+    assert not result['passed'] and result['key_fact_recall'] == 0
+    assert result['unsupported_citation_count'] == 1

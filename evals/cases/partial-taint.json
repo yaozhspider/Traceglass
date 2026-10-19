@@ -1,0 +1,33 @@
+{
+  "id": "partial-taint",
+  "kind": "authored-vulnerability-contract",
+  "analysis_goal": "vulnerability",
+  "sample_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "task": "Evaluate the scoped vulnerability, controllability and exploitability. Distinguish confirmed static defects from demonstrated runtime effects. Target is an authorized synthetic fixture.",
+  "evidence": [
+    {
+      "id": "E1",
+      "text": "External bytes reach a decoder; indirect callback and decoded length remain unresolved."
+    },
+    {
+      "id": "E2",
+      "text": "memcpy import exists, but there is no verified path from the decoder to that import."
+    }
+  ],
+  "rubric": {
+    "allowed_verdicts": [
+      "unknown"
+    ],
+    "required_evidence": [
+      "E1",
+      "E2"
+    ],
+    "required_vuln_classes": [
+      "unknown"
+    ],
+    "allowed_exploitability": [
+      "unknown"
+    ],
+    "requires_gaps": true
+  }
+}

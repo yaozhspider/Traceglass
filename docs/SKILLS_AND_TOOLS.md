@@ -5,10 +5,27 @@ Traceglass does not have a parallel Skill registry or Tool policy engine.
 
 ## Skills
 
-The project bundles **12 Skills**, including dynamic-malware-analysis,
+The project bundles **19 Skills**, including dynamic-malware-analysis,
 malware-analysis, crypto-obfuscation-analysis, sandbox-dynamic-debugging,
 reverse-engineering and its nested dsl-vm-reverse, ghidra-reverse,
-key-function-analysis, protocol-reverse, rea-analysis, traceglass-analysis and behavior-chain-review.
+key-function-analysis, protocol-reverse, rea-analysis, traceglass-analysis, behavior-chain-review,
+the official reverse-engineer-anything, vulnerability-hunting, vuln-discovery,
+unpacking, js-reverse, browser-extension-reverse and docs-generator.
+`traceglass-analysis` is the task entry; `rea-analysis` adapts format-specific REA
+capabilities to this deployment. Method, platform, engine and report Skills are
+loaded as needed. Every new task assesses REA relevance, but documentation,
+ordinary source reading and existing report parsing do not need an engine call.
+Discovery must lead to activation/schema inspection/use, or a recorded reason
+that the capability is unsuitable or its prerequisites are missing.
+See [Skill organization](SKILL_ORGANIZATION.md) for roles and rollout limits.
+Vuln-discovery supplies discovery methods and eight offline reference files;
+vulnerability-hunting supplies the Traceglass path and conclusion review contract.
+Both are loaded for vulnerability discovery and audit. Their finding confidence,
+path status and exploitability labels remain distinct. Unpacking and vuln-discovery
+include Traceglass tool, evidence and sandbox adapters;
+dynamic execution requires an authorized, applicable Windows, Linux or browser
+isolation channel. `dynamic-malware-analysis` reads existing CAPE/DDAN reports;
+`sandbox-dynamic-debugging` owns active execution/debugging guidance.
 References and scripts are included in the Python package, not just SKILL.md.
 Imported sources and SHA-256 records are in `resources/skill-sources.json`.
 `TRACEGLASS_SKILL_ROOTS` accepts a path-separated list of package roots; each may
@@ -32,12 +49,38 @@ runtime only seeds an empty skills directory. Existing names and edits are kept.
 When `TRACEGLASS_LEGACY_PROJECT` points at the existing reverse project, the
 native loader discovers all 45 legacy packages (including the nested
 `pentest-tools/src-hunter` and `reverse-engineering/dsl-vm-reverse` packages) and
-the Traceglass, REA and behavior-chain-review Skills: **49 effective packages**, including the official `reverse-engineer-anything` release Skill, with the current tree.
-Explicit external packages override bundled fallbacks of the same directory
-name; collisions between different external roots remain an error.
+the Traceglass additions: **52 effective packages** with the current configured tree.
+The 45 legacy packages and 19 project packages overlap in 12 directory names.
+Loading precedence is **automatically inherited legacy defaults → project
+packages → explicitly configured `TRACEGLASS_SKILL_ROOTS`**. Thus old defaults
+cannot replace project adaptations; explicit user packages can override them.
+Even an explicitly selected legacy root is treated as a user override.
+Collisions between different explicit roots remain an error.
 A staging copy qualifies duplicate frontmatter
 names for AgentScope's index while preserving the original names for legacy
 resource lookup. The source Skill tree remains read-only.
+
+`scripts/audit_skills.py` reports effective sources, revisions and content hashes
+without staging packages or connecting to any analysis service. An optional
+host workspace root adds a comparison with its installed copies:
+
+```sh
+PYTHONPATH=src python3 scripts/audit_skills.py
+PYTHONPATH=src python3 scripts/audit_skills.py --workspace /absolute/workspace/root
+```
+
+`differs_from_source` means the contents differ; it does not establish that a
+workspace is outdated, because its user edits and prior source are unknown.
+The command never updates Skills. Source changes apply when a new workspace is
+created from them; the existing compatibility sync only adds missing names.
+Updating same-name copies in an existing workspace requires a separate reviewed
+migration that preserves user changes. A service restart alone does not replace
+those copies. Adapted entries carry `metadata.traceglass_revision`; package
+hashes also cover references and scripts, including unversioned legacy packages.
+`scripts/migrate_skills.py prepare` produces a backup, candidate tree and diff;
+`apply` and `rollback` reject intervening content changes. The operator must
+confirm the actual workspace is idle; this explicit offline utility never runs
+at startup or interrupts agent runs. See the organization guide for usage.
 
 ## Python tools
 
@@ -57,9 +100,9 @@ A local workspace and path checks are not a sandbox against hostile execution.
 
 ## MCP
 
-For the pinned REA 6.1.0 upgrade, official Skill, six MCP workflows and shared
+For the pinned REA 6.3.0 upgrade, official Skill, six MCP workflows and shared
 evidence archive, see [REA integration](REA_INTEGRATION.md). The old kit path
-below remains supported; use the new generated kit path to activate 6.1.0.
+below remains supported; use the new generated kit path to activate 6.3.0.
 
 REA container-kit is configured separately from in-sandbox MCP endpoints:
 
@@ -72,11 +115,27 @@ and immutable image ID in `MANIFEST.json`. It keeps the image unchanged and
 adapts the launcher mounts so the workspace is read-only at `/workspace`, with
 network disabled, no Docker socket in the analysis container, and a private
 state volume for each user/session/workspace. Main and worker agents get separate
-REA processes and current-binary state. Connections survive approvals and pauses;
-service shutdown closes them, and the next analysis can reopen its binary.
-Cache volumes persist. Use `close_binary` when no longer analyzing a binary.
+REA processes and current-binary state. Image-bound `TOOLS.json` registers native
+MCP definitions without starting a container; first actual use connects. Missing
+metadata can be discovered explicitly through `ConnectRea`, without opening a sample.
+`SearchAnalysisTools` reports registered/deferred status and activation arguments.
+`TRACEGLASS_REA_MAX_CONNECTIONS=10` limits resident connections per API process.
+`TRACEGLASS_REA_QUEUE_WAIT_SECONDS=30` bounds the admission queue before a capacity
+error. `GetReaStatus` reports aggregate counts and caller ownership without using
+a slot; it does not expose other accounts' identifiers. A caller without a
+connection cannot release another agent's connection.
+`TRACEGLASS_REA_IDLE_SECONDS=600` reaps connections with no active calls; zero
+disables automatic reaping. Pauses and approval waits count as idle, and the runtime
+prompt explains that policy. Active calls are protected. `ReleaseReaSession`
+explicitly releases the caller's idle connection; a normal completed reply also
+releases its own idle connection, and accepted task completion can release an
+idle member. Interrupted/error replies retain the idle policy. Service shutdown
+also closes connections. Cache volumes
+persist, but live handles expire and require `binary_session`/`open_binary` again;
+archived evidence IDs remain readable. Calls are never automatically replayed.
+Multi-process deployments require a shared connection quota and mutation lock.
 
-Native `MCPClient` and `MCPTool` supply all 138 discovered tools in the 6.1.0 kit, permission
+Native `MCPClient` and `MCPTool` supply all 139 discovered tools in the 6.3.0 kit, permission
 checks, events and execution. A middleware attaches them to both leader and worker
 toolkits: 12 common binary tools are immediately equipped; other tools use native
 `ToolGroup` / `reset_tools` activation. Large individual schemas have separate
@@ -89,7 +148,7 @@ in `/product/runtime` integration status. Reconnection is attempted on a later
 analysis setup, after a 30-second cooldown. Startup timeout is 120 seconds;
 tool timeout is 600 seconds.
 
-Confirmed with an authored ELF object: 138-tool discovery (6.1.0), `open_binary`,
+Confirmed with an authored ELF object: 139-tool discovery (6.3.0), `open_binary`,
 Ghidra 12.1.4 `binary_overview`, `search_procedures`, `procedure_pseudo_code`,
 and `close_binary`. The fixture was never executed. Hopper remains its demo
 edition; advertised tools can have host/provider limitations, and this change
@@ -139,8 +198,12 @@ Task store: returned `task_id` values work with TaskGet and TaskUpdate, and the
 native service persists and broadcasts the same task state. Omitted tasks and
 fields are preserved; invalid batches do not partially update the plan.
 
-The leader writes the plan first, assigns `owner` to the member's actual name,
-sets dependencies through TaskUpdate, and delegates ready work. `agents.py`
+The main agent normally works alone, delegating 0–2 independent evidence tasks
+when their inputs and dependencies are ready. Create/Invite prompts start with
+`task_id=<native task ID>`; the task must be unfinished and owner-free, and the
+middleware reserves/rolls back its actual owner under the native mutation lock.
+Follow-up `TeamSay` assignments use the same first-line marker; ordinary progress
+messages need no marker. `agents.py`
 overrides the native `default` template so the model can invent specialists
 for the current task with common evidence, progress and sandbox requirements.
 Three optional shortcuts remain: static-reverse, dynamic-evidence, and verifier.
@@ -167,3 +230,19 @@ in the native workspace/sandbox configuration and its acceptance tests.
 `PrepareAnalysisInput` prepares scoped paths and read-only snapshots for local IDA.
 See [Analysis quality](ANALYSIS_QUALITY.md) for structural review limits, configuration
 and repeatable baseline/candidate evaluations.
+
+Applicable analysis outputs, including ordinary text and terminal failures,
+are captured by the scoped evidence ledger. `QueryAnalysisEvidence` and
+`ReadAnalysisEvidence` expose original archived output; REA names remain aliases.
+Call archives are limited to 1 MiB with explicit truncation; base64 attachments
+are stored separately with hashes and scoped download endpoints. The runtime
+preserves the original response on archive failure and marks the missing receipt.
+Successfully archived outputs over 16,000 characters enter model context as a
+short receipt before native truncation/compression; streamed history and archived
+originals remain available. Explicit evidence reads are paged.
+New sessions use `TRACEGLASS_STRICT_EVIDENCE_REFERENCES=true`: reference checks
+cover ownership, sample association, content integrity, status and locators.
+`review_passed` still means structural validity; neither hashes nor reference
+checks prove the analysis or conclusion correct. Legacy review state and replay
+use explicit compatible mode. See [Evaluation](EVALUATION.md) for independent
+static manifests and the separate native product benchmark.

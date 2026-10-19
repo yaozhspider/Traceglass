@@ -1,6 +1,10 @@
 # 当前工具清单
 
-核对日期：2026-10-09。REA 来自实际 MCP 工具发现记录，reverse 来自当前注册代码。工具已注册不代表每个后端能力在当前平台均可执行。
+核对日期：2026-10-10。REA 来自实际 MCP 工具发现记录，reverse 来自当前注册代码。工具已注册不代表每个后端能力在当前平台均可执行。
+
+默认展示已按能力收敛：REA 连接时 reverse 为 11 个常驻、30 个按需工具；REA 未连接时为 20 个常驻、21 个按需工具。
+模型通过 `SearchAnalysisTools` 查询跨服务工具、首选/备用入口及激活参数。
+详见 [工具入口审计与按需展示](TOOL_DEDUPLICATION.md)。以下保留完整能力清单，并非全部默认加载。
 
 ## AgentScope 原生与项目规划工具
 
@@ -54,7 +58,7 @@
 - `archive_sandbox_experiment`
 - `record_crypto_experiment`
 
-## REA MCP：138 个（6.1.0）
+## REA MCP：139 个（6.3.0）
 
 完整调用名以 `mcp__rea__` 开头。12 个常用工具默认启用，其余用原生 reset_tools 按需启用对应 rea_* 分组。
 
@@ -191,6 +195,7 @@
 - `get_navigation_context`
 - `inspect_address_context`
 
+- `inspect_analysis_view`（6.3.0 新增，分页查看已有分析证据）
 - `inspect_binary_layout`
 - `inspect_evm_interface`
 - `inspect_recorded_crash`
@@ -201,7 +206,7 @@
 ## 工作流和共享证据适配工具
 
 `ListReaWorkflows`、`GetReaWorkflow`、`QueryReaEvidence`、`ReadReaEvidence`。
-这些是 Traceglass 的原生适配工具，不计入 138 个 REA MCP 工具。六个上游工作流为：
+这些是 Traceglass 的原生适配工具，不计入 139 个 REA MCP 工具。六个上游工作流为：
 
 - `investigate_feature`
 - `compare_application_versions`

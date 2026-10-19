@@ -1,16 +1,16 @@
 {
   "repository": "https://github.com/morluto/rea",
   "package": "rea-agents",
-  "version": "6.1.0",
-  "tarball": "https://registry.npmjs.org/rea-agents/-/rea-agents-6.1.0.tgz",
-  "integrity": "sha512-xsXFiXEt2hc5ts+zX3D8zdyZHK5Glbp8GFYSIHMZytDiUCGAQp2crDmkoyiXNNbXXcvem228h+k54xUOYCnI7Q==",
+  "version": "6.3.0",
+  "tarball": "https://registry.npmjs.org/rea-agents/-/rea-agents-6.3.0.tgz",
+  "integrity": "sha512-1l3L22PYqlzW70I2Z8fVjWufdBp8lN5dwXSiBERLKPP7pybiFSHeCD8LnXfAoilYkmSQe1NfRgOrbIr9ujkOfQ==",
   "files": {
     "LICENSE": "798f9e4d18e49b30bf2f12696c8ced73dc4e1413da375a333d01281543a1ea8b",
-    "SKILL.md": "40ae3adca5d8f3ab86c7364a31b811c86dcdfe1874aef83ccf06c6c17152ab0e",
-    "references/android-applications.md": "4c4f12493bbd29365aefbba0430f0ea2a79058ed18de501c5a78ff5aebb8515c",
-    "references/evidence-workflows.md": "3d884c15aabf16f807b33dcde96138125dd614a42db2e22fc03766d19faeb04d",
-    "references/javascript-applications.md": "237983e41ffef8dc182b7cad217d2506e019243d3885773b95c2aa7eec143d02",
-    "references/native-and-artifacts.md": "cad48e193036ea692deb2b03d3bc60737af1a93bdadf8e288bf53f59b20110ee",
+    "SKILL.md": "f1156f8a608297f839bde968d47132db3cefd69371b311d22b0c397944f18094",
+    "references/android-applications.md": "412d9cb462d85b07f6fdbc2453dd741ca3da2c0dbba627867d5624df94afa74c",
+    "references/evidence-workflows.md": "c8ce2f38c9ea22934686692b325196fe48a92c7e406ce1ddac278e652b40cac7",
+    "references/javascript-applications.md": "cee36b5129e1c57543d43879542f6795799b4099d21708037257e7d76de22b66",
+    "references/native-and-artifacts.md": "2e1e30f4fdfe2b49fdaab2c1c36a70061902b75c89202d9c2e58e7a7701d039b",
     "references/runtime-observation.md": "b3eea94dd7d0c6474634de22ac3ccae317f42ba1ba2389d93535ee8dae7d94e1"
   }
 }

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { request, setSessionPermission } from '../execution/nativeApi';
 import type { ExecutionPermission, ProductConfig, SessionView } from '../execution/nativeApi';
-import { sampleContext, workspaceApi } from './workspaceApi';
+import { workspaceApi } from './workspaceApi';
+import {attachmentContext} from './attachments';
+import {useComposerAttachments} from './useComposerAttachments';
 import type {
   WorkspaceDetail,
   WorkspaceRuntime,
@@ -66,6 +68,12 @@ export function useWorkbench() {
   const [pausing, setPausing] = useState(false);
   const lastSessionRequest = useRef(0);
   const detailRevision = useRef(0);
+  const attachments = useComposerAttachments(config?.user_id, route.workspace, (sample, workspaceId) => {
+    if (routeRef.current.workspace !== workspaceId) return;
+    ++detailRevision.current;
+    setDetail(current => current ? {...current,
+      samples: [...current.samples.filter(s => s.sample_id !== sample.sample_id), sample]} : current);
+  });
   useEffect(() => {
     try {
       sessionStorage.setItem(
@@ -78,6 +86,7 @@ export function useWorkbench() {
   }, [pendingInputs]);
 
   const navigate = useCallback((next: Route, replace = false) => {
+    if (!replace) attachments.queue.clear();
     routeRef.current = next;
     setRoute(next);
     setError(null);
@@ -88,10 +97,11 @@ export function useWorkbench() {
     }
     if (replace) history.replaceState(null, '', url);
     else history.pushState(null, '', url);
-  }, []);
+  }, [attachments.queue]);
 
   useEffect(() => {
     const pop = () => {
+      attachments.queue.clear();
       const next = readRoute();
       routeRef.current = next;
       setRoute(next);
@@ -100,7 +110,7 @@ export function useWorkbench() {
     };
     window.addEventListener('popstate', pop);
     return () => window.removeEventListener('popstate', pop);
-  }, []);
+  }, [attachments.queue]);
 
   const refreshSessions = useCallback(
     async (cfg: ProductConfig, signal?: AbortSignal) => {
@@ -175,6 +185,12 @@ export function useWorkbench() {
     })();
     return () => controller.abort();
   }, [refreshWorkspaces, refreshSessions]);
+
+  useEffect(() => {
+    const update = () => void request<ProductConfig>('/product/config').then(setConfig).catch(e => setError(String(e)));
+    window.addEventListener('traceglass-model-changed', update);
+    return () => window.removeEventListener('traceglass-model-changed', update);
+  }, []);
 
   useEffect(() => {
     if (!config) return;
@@ -292,11 +308,19 @@ export function useWorkbench() {
   const boundSample = route.session
     ? detail?.tasks.find((task) => task.session_id === route.session)?.sample_id
     : null;
-  const selectedSample =
-    detail?.samples.find(
-      (sample) =>
-        sample.sample_id === (route.session ? boundSample : route.sample),
-    ) ?? null;
+  const selectedSample = detail?.samples.find(sample => sample.sample_id === (route.session ? boundSample : route.sample)) ?? null;
+  const selectedSamples = attachments.queue.ready();
+  const selectedSampleIds = selectedSamples.map(sample => sample.sample_id);
+  // Preserve old deep links, while all new file selections use the message queue.
+  const importedRouteSample = useRef<string | null>(null);
+  useEffect(() => {
+    const key = `${route.workspace}:${route.sample}`;
+    if (!route.session && route.sample && selectedSample && importedRouteSample.current !== key) {
+      importedRouteSample.current = key;
+      attachments.queue.addExisting([selectedSample]);
+    }
+    if (!route.sample) importedRouteSample.current = null;
+  }, [route.workspace, route.sample, route.session, selectedSample, attachments.queue]);
   const openWorkspace = (id: string | null) => {
     setDraftPermission('default');
     setPrompt('');
@@ -312,15 +336,14 @@ export function useWorkbench() {
     navigate({
       ...route,
       session: null,
-      sample: selectedSample?.sample_id ?? route.sample,
+      sample: null,
     });
   };
-  const selectSample = (id: string | null) => {
-    // A conversation remains bound to its original sample. Changing the
-    // selection opens a fresh analysis instead of silently mixing evidence.
-    if (route.session && id === boundSample) return;
-    if (route.session) setDraftPermission('default');
-    navigate({ ...route, session: null, sample: id });
+  const selectSamples = (ids: string[]) => {
+    for (const sample of attachments.queue.ready()) {
+      if (!ids.includes(sample.sample_id)) attachments.queue.removeSample(sample.sample_id);
+    }
+    attachments.queue.addExisting(detail?.samples.filter(sample => ids.includes(sample.sample_id)) ?? []);
   };
   const sampleUploaded = (sample: WorkspaceSample, workspaceId: string) => {
     if (routeRef.current.workspace !== workspaceId) return;
@@ -338,9 +361,28 @@ export function useWorkbench() {
           }
         : current,
     );
-    selectSample(sample.sample_id);
+    attachments.queue.addExisting([sample]);
     if (config)
       void refreshWorkspaces(config).catch((e) => setError(String(e)));
+  };
+  const [deletingSample, setDeletingSample] = useState<string | null>(null);
+  const deleteSample = async (sample: WorkspaceSample) => {
+    if (!config || !route.workspace || deletingSample) return;
+    const workspaceId = route.workspace;
+    const queue = attachments.queue;
+    setDeletingSample(sample.sample_id);
+    try {
+      await workspaceApi.deleteSample(config.user_id, workspaceId, sample.sample_id);
+      queue.removeSample(sample.sample_id);
+      if (routeRef.current.workspace === workspaceId) {
+        ++detailRevision.current;
+        setDetail(current => current ? {...current, samples: current.samples.filter(item => item.sample_id !== sample.sample_id)} : current);
+        if (routeRef.current.sample === sample.sample_id) navigate({...routeRef.current, sample: null}, true);
+      }
+      await refreshWorkspaces(config);
+    } catch (failure) {
+      if (routeRef.current.workspace === workspaceId) setError(String(failure));
+    } finally {setDeletingSample(null);}
   };
 
   const createWorkspace = async (name: string, description = '') => {
@@ -380,6 +422,8 @@ export function useWorkbench() {
       !route.workspace ||
       !prompt.trim() ||
       busy ||
+      !!deletingSample ||
+      attachments.queue.blocked() ||
       permissionSaving ||
       pausing ||
       ['preparing', 'running', 'awaiting_permission'].includes(
@@ -393,7 +437,8 @@ export function useWorkbench() {
     }
     const current = { ...route };
     const text = prompt.trim();
-    const sample = selectedSample;
+    const attached = attachments.queue.ready();
+    const attachmentIds = attachments.items.map(item => item.id);
     const inputId = crypto.randomUUID();
     let submittedSession: string | null = null;
     let accepted = false;
@@ -407,7 +452,7 @@ export function useWorkbench() {
           current.workspace!,
           {
             name: text.slice(0, 60),
-            sample_id: sample?.sample_id,
+            sample_id: attached[0]?.sample_id,
             chat_model_config: config.model_config,
             permission_mode: draftPermission,
           },
@@ -435,7 +480,7 @@ export function useWorkbench() {
         );
       }
       const content = [
-        ...(sample ? [{ type: 'text', text: sampleContext(sample) }] : []),
+        ...(attached.length ? [{type: 'text', text: attachmentContext(attached)}] : []),
         { type: 'text', text },
       ];
       submittedSession = id;
@@ -449,6 +494,7 @@ export function useWorkbench() {
         }),
       });
       accepted = true;
+      attachmentIds.forEach(id => attachments.queue.remove(id));
       if (routeRef.current.workspace === current.workspace) {
         setRuntime((value) => ({
           ...value,
@@ -511,6 +557,9 @@ export function useWorkbench() {
     active,
     route,
     selectedSample,
+    selectedSamples,
+    selectedSampleIds,
+    attachments,
     prompt,
     setPrompt,
     pendingInput: route.session ? pendingInputs[route.session] : undefined,
@@ -527,8 +576,10 @@ export function useWorkbench() {
     openWorkspace,
     openSession,
     newAnalysis,
-    selectSample,
+    selectSamples,
     sampleUploaded,
+    deleteSample,
+    deletingSample,
     createWorkspace,
     refresh,
     submit,

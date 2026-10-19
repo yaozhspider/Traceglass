@@ -1,6 +1,8 @@
 ---
 name: behavior-chain-review
 description: Use when analyzing sample behavior, assessing maliciousness, reviewing a benign verdict, or encountering incomplete decompilation of network receivers, Python/Cython extensions, callbacks or execution sinks.
+metadata:
+  traceglass_revision: routing-v1
 ---
 
 # 外部输入与执行链复核
@@ -53,10 +55,12 @@ C-API 参数和实际分支分析。错误信息中的 exec、运行库导入和
 
 ## 工具失败与替代
 
+任务入口和证据归档遵循 `traceglass-analysis`；本 Skill 只补行为路径的复核字段。
 先调用 PrepareAnalysisInput，核对输入哈希和返回路径。只有明确配置的同机 IDA 才返回
 ida_file_path；容器 /workspace 路径不能直接当成远端 IDA 的宿主机路径。
-打开失败后保留错误证据，使用 REA open_binary（provider=ghidra）及返回的 rea_file_path，
-再查询函数/引用和伪代码；专用工具组通过 reset_tools 按需启用。
+先按 `rea-analysis` 选择目标格式的入口；原生目标可用 REA open_binary 及返回的 rea_file_path，
+provider_id 按实际可用引擎选择，再查询函数/引用和伪代码；专用工具组通过 reset_tools 按需启用。
+不要求先尝试 IDA；JS、托管与已有报告不强制走原生打开流程。失败时保留原始错误再换适用后端。
 一次替代仍不可用时明确列出阻塞，不要无限重复错误路径或以 strings 冒充反编译。
 
 ## 结论与验收

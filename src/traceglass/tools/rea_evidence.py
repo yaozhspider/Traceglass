@@ -6,15 +6,16 @@ from agentscope.tool import FunctionTool, ToolChunk
 from traceglass.integrations.rea_workflows import response
 
 
-def evidence_tools(store, user_id, workspace_id):
+def evidence_tools(store, user_id, workspace_id, *, analysis=False):
     async def query(sample_sha256: str | None = None, kind: str | None = None,
                     cursor: int | None = None, limit: int = 30) -> ToolChunk:
         """List saved REA evidence or unknown revisions from all agents in this workspace. Filter kind by evidence/unknown and sample_sha256 when comparing a sample. Returns summaries and a pagination cursor, not native REA handles. Unknown entries are revision history, not a global current-state judgment."""
         try:
-            if kind not in (None, 'evidence', 'unknown'):
+            if kind not in (None, 'evidence', 'unknown', 'tool_call') or (not analysis and kind == 'tool_call'):
                 raise ValueError('Invalid kind')
             result = await asyncio.to_thread(store.list, user_id, workspace_id,
-                sample_sha256=sample_sha256, kind=kind, cursor=cursor, limit=limit)
+                sample_sha256=sample_sha256, kind=kind, cursor=cursor, limit=limit,
+                kinds=None if analysis else ['evidence', 'unknown'])
             return response(result)
         except ValueError:
             return response({'error': 'Invalid archive filter or pagination.'}, error=True)
@@ -32,5 +33,5 @@ def evidence_tools(store, user_id, workspace_id):
         return response({**record, 'raw_page': raw[offset:end], 'offset': offset,
                          'total_chars': len(raw), 'next_offset': end if end < len(raw) else None})
 
-    return [FunctionTool(query, name='QueryReaEvidence', is_read_only=True),
-            FunctionTool(read, name='ReadReaEvidence', is_read_only=True)]
+    return [FunctionTool(query, name='QueryAnalysisEvidence' if analysis else 'QueryReaEvidence', is_read_only=True),
+            FunctionTool(read, name='ReadAnalysisEvidence' if analysis else 'ReadReaEvidence', is_read_only=True)]

@@ -1,224 +1,196 @@
-# Traceglass
+# Aicube-Traceglass
 
-Traceglass is a reverse-analysis workbench built on **AgentScope 2.0.6**.
-AgentScope is the single execution runtime: ReAct, task planning, teams,
-permissions, sessions, storage, tools, skills, MCP and streaming all use its
-native implementation.
+Traceglass 是面向逆向工程与恶意软件分析的 AI 工作台。它将样本管理、模型对话、工具调用、团队协作和证据归档整合到同一个界面，帮助分析人员追踪结论及其依据。
 
-The former custom Planner, PlanExecutor, SubagentManager, TraceService and
-TraceStore have been removed. There is no fixed five-stage execution loop.
-The analyst decides whether to answer directly, use Task tools, or delegate
-an independent question with Team/Agent tools.
+项目使用 **AgentScope 2.0.6** 作为执行框架，后端为 Python / FastAPI，前端为 React / TypeScript / Vite。REA 发布版本锁定为 **6.3.0**，分析引擎、Windows 调试环境和其他 MCP 服务按部署配置接入。
 
-## Run locally
+## 主要功能
 
-Python 3.11+ and Node 22.18+ are required. Install into a virtual environment:
+- **分析工作区**：创建和搜索工作区，上传、选择样本，浏览文件，查看文本及十六进制预览，下载分析产物。
+- **可追踪的分析过程**：流式展示模型回复、工具输入与结果、任务清单和子会话；支持暂停、继续和历史恢复。
+- **团队协作**：主分析 Agent 按任务创建专项成员，通过原生 Task / Team 工具分工和复核；每个团队最多 8 个成员，不含主分析 Agent。
+- **REA 集成**：按需发现和激活工具，使用独立 MCP 连接执行分析；支持连接配额、空闲回收、工作流查询及证据归档。
+- **专项分析 Skill**：内置 19 个技能包，覆盖通用逆向、恶意软件、漏洞、协议、加密与混淆、脱壳、JavaScript 和浏览器扩展等方向。
+- **证据管理**：按账号和工作区保存分析回执、引用及工具失败记录，通过 `AnalysisReview` 检查结论的证据引用。
+- **账号与模型**：可选多用户注册和登录；各账号管理自己的工作区及 OpenAI Chat Completions 兼容模型凭据。
+- **Windows 动态调试**：可选通过 VMware Guest Operations 接入专用 Windows 虚拟机，使用固定工具配置及 x64dbg / x32dbg 自动化接口。
+
+技能描述、工具注册、服务连通和实际执行能力分别核验。安装 Skill 不会自动安装它引用的外部工具。
+
+## 环境要求
+
+| 依赖 | 要求与用途 |
+| --- | --- |
+| Python | 3.11 及以上；建议使用独立虚拟环境 |
+| Node.js | 建议 22.18 及以上，用于前端开发与构建 |
+| 模型服务 | 分析任务需要支持流式响应及工具调用的 OpenAI 兼容接口 |
+| Docker | Docker 工作区及 REA 容器需要；本地界面开发可不使用 |
+| 分析镜像 / REA kit | 单独准备并配置，不随源码仓库分发 |
+| Windows / VMware 环境 | 可选；仅 Windows 来宾工具与动态调试需要 |
+
+## 本地启动
+
+### 1. 获取项目并安装后端
 
 ```sh
+git clone git@gitlab.asiainfo-sec.com:LLMSP/aicube-traceglass.git
+cd aicube-traceglass
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -e '.[test]'
+cp .env.example .env
 ```
 
-Configure an OpenAI-compatible model with environment variables. API keys are
-kept out of source control; the opt-in legacy profile below reads the old
-project's settings and seeds native credentials in the local data directory:
+编辑 `.env`，先使用本地工作区启动开发环境：
+
+```dotenv
+TRACEGLASS_WORKSPACE_BACKEND=local
+TRACEGLASS_DATA_DIR=traceglass-data
+LLM_MODEL=your-model-name
+LLM_API_KEY=your-api-key
+LLM_BASE_URL=https://your-model-service.example/v1
+```
+
+应用默认读取当前目录的 `.env`，进程环境变量优先。可通过 `TRACEGLASS_ENV_FILE` 指定其他配置文件。未配置模型时仍可启动服务和查看已保存内容，实际分析需要补齐模型配置。
 
 ```sh
-export LLM_MODEL='your-model-name'
-export LLM_API_KEY='your-key'
-export LLM_BASE_URL='https://your-model-endpoint/v1'
 traceglass
 ```
 
-`LLM_BASE_URL` is optional for the provider's default endpoint. `.env.example`
-is a reference; this application does not automatically source shell files.
-The server binds to `127.0.0.1:8000`. Without model configuration it still
-starts and can browse saved sessions; the UI explains what is missing.
-
-In a second terminal:
+后端默认监听 `http://127.0.0.1:8000`。也可以显式指定地址和端口：
 
 ```sh
-cd web
+python -m uvicorn traceglass.api.app:create_app --factory --host 127.0.0.1 --port 8002
+```
+
+### 2. 启动前端
+
+在另一个终端执行：
+
+```sh
+cd aicube-traceglass/web
 npm ci
-npm run dev
+TRACEGLASS_API_TARGET=http://127.0.0.1:8000 npm run dev -- --host 127.0.0.1 --port 5177 --strictPort
 ```
 
-Open the Vite address printed in the terminal. The `/api` dev proxy forwards
-to the backend, including SSE, so no cross-origin setup is needed locally.
+打开 `http://127.0.0.1:5177`。若后端使用 8002，需同步修改 `TRACEGLASS_API_TARGET`。
 
-To run with the existing reverse-analysis implementation, point Traceglass at
-the old project and build the isolated analysis image once:
+Vite 将 `/api` 请求代理到后端，并移除此前缀，支持流式事件。省略端口参数时，Vite 默认使用 5173。
+
+### 3. 开始分析
+
+创建工作区，上传并选择样本，输入分析目标。工作台展示工具回执、任务进度和分析结果。没有接入的引擎或工具需要先按下面的部署文档配置。
+
+`local` 工作区仅提供文件目录划分，不能隔离进程执行。执行不可信样本前应配置专用分析环境。
+
+## 分析环境配置
+
+### Docker 工作区与旧工具库
+
+设置 `TRACEGLASS_WORKSPACE_BACKEND=docker`，并将 `TRACEGLASS_SANDBOX_IMAGE` 指向已准备好的分析镜像。
+
+如需复用现有 reverse 项目的工具与技能，可设置 `TRACEGLASS_LEGACY_PROJECT=/absolute/path/to/reverse`。项目只读取旧库，使用桥接后的领域工具，不运行旧库的 Agent 执行引擎。已有基础镜像时，可构建适配镜像：
 
 ```sh
-export TRACEGLASS_LEGACY_PROJECT=/Users/yaozh/llms/reverse
-export TRACEGLASS_DATA_DIR=/absolute/path/to/traceglass-data
-python scripts/build_analysis_image.py \
-  --legacy-project "$TRACEGLASS_LEGACY_PROJECT"
-export IDA_ENABLED=true
-export IDA_MCP_URL=http://host.docker.internal:8745/mcp
-export TRACEGLASS_REA_KIT=/Users/yaozh/llms/reverse/dist/rea-container-kit
-traceglass
+python scripts/build_analysis_image.py --legacy-project /absolute/path/to/reverse
 ```
 
-The old project is read-only. Traceglass loads its model settings, discovers 45
-legacy Skill packages plus the built-in Traceglass and REA Skills (49 effective packages, including the official REA Skill), exposes 41
-legacy reverse tools through a native AgentScope MCP client, and copies samples,
-rules and reports into its own Docker workspace. IDA contributes its tools only
-when the separately started IDA MCP service is reachable. If IDA is offline,
-the session can still use the static reverse MCP tools and the UI should report
-IDA as unavailable.
+脚本依赖已有的基础镜像，详细前置条件、MCP 配置及可选 IDA 接入见 [Skills 与工具](docs/SKILLS_AND_TOOLS.md)。
 
-REA is optional. The pinned 6.1.0 kit supplies 138 tools, including Ghidra and
-Hopper integration, through a separate native MCP connection for each Agent.
-Twelve common tools are equipped initially; native `reset_tools` activates the
-remaining tool groups on demand to keep large schemas out of routine requests.
-The source package now includes 13 core analysis Skills with references/scripts,
-so its main analysis workflows are discoverable without the legacy checkout.
-External tool availability still depends on the deployment. See
-[Skills and tools](docs/SKILLS_AND_TOOLS.md) for paths, runtime limits and validation.
+### REA
 
-The REA 6.1 integration also exposes six native workflows and archives evidence
-for shared access by the leader, workers and workbench. See
-[REA upgrade and testing](docs/REA_INTEGRATION.md) for building, the isolated test
-entry point, supported backends and rollback. The original kit stays usable.
+REA 通过独立容器 kit 接入。kit 包含镜像清单及与镜像绑定的工具元数据；构建需要已有的基础引擎 kit 和镜像：
 
-## What is implemented
+```sh
+python scripts/build_rea_image.py \
+  --base-kit /absolute/path/to/rea-container-kit \
+  --output traceglass-data/rea-kits/6.3.0-pwntools
+```
 
-- Native AgentScope service composition with SQLAlchemy/SQLite persistence.
-- Workspace home, search and creation; sample upload/selection; workspace-bound
-  native conversations; file browsing, UTF-8/hex preview and original download.
-  Uploading selects the sample, and switching samples opens a new analysis.
-  Workspaces and sample associations survive refresh and server restart.
-- New local and Docker workspaces use distinct host directories. Historical
-  sessions retain their original layout and import a bounded sample catalog.
-  File endpoints reject traversal and symlinks, limit uploads to 100 MiB,
-  and bound text previews to 256 KiB and binary previews to 4 KiB.
-- One analyst dynamically creates specialist workers through the native
-  `default` template; `static-reverse`, `dynamic-evidence`, and `verifier` remain
-  optional shortcuts. Framework Team tools control execution and communication.
-- The leader writes a visible plan with `TodoWrite` before delegation, assigns
-  owners and reviews evidence before completing tasks. This bulk adapter writes
-  AgentScope's native Task state, preserving Task IDs, dependencies and history.
-  Each team can contain at most **8 workers, excluding its leader**. The service
-  serializes native team mutations and rejects a ninth Create/Invite; existing
-  workers can be reused through TeamSay. Model-initiated TeamDelete is rejected
-  to preserve child-session evidence/history and prevent resetting this limit.
-- Environment-configured model credentials, Skill directories and native MCP
-  configurations. Standard workspace tools come from AgentScope.
-- Read-only integration with the existing reverse project: its OpenAI-compatible
-  model, 45 Skills, 41 reverse MCP tools, analysis archive functions and Docker
-  image are available through native AgentScope workspace bindings.
-- Native `FunctionTool` extensions: `inspect_file`, `extract_strings`, and
-  `write_report`. These inspect workspace bytes or create an immutable report;
-  they never execute a sample.
-- Real session list and task submission; native stop and permission confirmation.
-  Setup status comes from the native run registry, so container/MCP preparation
-  is visible and cancellable. Pending questions remain visible across reloads
-  until the native user message is saved; the UI never automatically resends.
-- IDA is optional: static MCP starts first, then the native add-MCP API probes
-  IDA. Connection failures are shown in the workspace and model instructions,
-  while available static tools continue to work.
-- Streaming text/available thinking blocks, expandable tool inputs/results,
-  live Todo state from native state-change events, raw received events and
-  expandable child-session history.
-- Native persisted message history after restart. Live event delivery uses
-  AgentScope's in-memory bus and reconnect replay buffer.
-- Each reply defaults to **2000 ReAct iterations**. The last iteration is
-  reserved for a model-written evidence summary and remaining work; Continue
-  starts a fresh budget in the same session. Native context compression remains
-  enabled. See [pause, continuation and budget behavior](docs/2026-10-08-pause-and-continuation.md).
-- Pause All interrupts the leader, its owned workers and registered background
-  tools. A leader can explicitly reassign a paused worker with named TeamSay,
-  retaining its history; late reports and broadcasts do not resume paused runs.
-- An app-local compatibility adapter re-enqueues a native wake when a background
-  result arrives during the final model call. It keeps native scheduling, skips
-  duplicate empty wakes, and preserves explicit continuation and stop semantics.
+构建并验证后，将 `TRACEGLASS_REA_KIT` 设置为生成目录的绝对路径，再重启后端。工具目录可查询不等于引擎已连接，首次实际调用时才建立相应 Agent 的连接。
 
-All displayable content the provider/framework emits can be inspected. A model
-that does not return reasoning text cannot have that text reconstructed. The
-UI does not invent analysis events. Per-token event buffers are not a separate
-permanent audit log; native message blocks and tool results are persisted.
+新任务先评估 REA 的适用性，再按样本格式和证据需求选择工具。纯文档、普通源码阅读和已有报告解析可使用对应工具。完整构建、连接生命周期及验证方法见 [REA 集成](docs/REA_INTEGRATION.md)，工具选择见 [REA 工具路由](docs/REA_TOOL_SELECTION.md)。
 
-## Structure
+### Windows 来宾工具
+
+安装可选依赖并从示例准备私有配置：
+
+```sh
+pip install -e '.[windows]'
+```
+
+将 [Windows 配置示例](config/windows.example.json) 复制到仓库外的私有目录，填写 VMware 主机、虚拟机、工具路径和授权账号。密码通过配置引用的环境变量提供，再设置 `TRACEGLASS_WINDOWS_CONFIG=/absolute/private/windows.json`。
+
+样本执行默认关闭。动态调试需要管理员配置执行权限、固定基线快照、匹配的调试器插件和客户端，并满足任务授权及隔离条件。具体能力和回收流程见 [Windows 来宾工具](docs/WINDOWS_GUEST_TOOLS.md)；脱壳工具说明见 [NoVmp](docs/NOVMP.md)。
+
+## 多用户账号与个人模型
+
+多用户模式要求 Docker 工作区，并预先准备分析镜像。示例配置：
+
+```dotenv
+TRACEGLASS_AUTH_ENABLED=true
+TRACEGLASS_WORKSPACE_BACKEND=docker
+TRACEGLASS_ALLOWED_ORIGINS=http://127.0.0.1:5177,http://localhost:5177
+TRACEGLASS_SECURE_COOKIES=false
+```
+
+启动后在页面注册账号，并在“模型设置”中填写 API 地址、模型名称和 API Key。个人账号使用自己的模型凭据，不继承部署者的模型 Key。
+
+亚信安全接口可填写 `https://llm.asiainfo-sec.com/v1`，模型为 `deepseek-v4-pro`；页面也接受完整的 `/v1/chat/completions` 地址并统一规范化。API Key 加密保存在本地数据目录中，不随源码分发。
+
+对外部署须配置 HTTPS、安全 Cookie、明确的允许来源和受控反向代理，使用单个 API worker。账号隔离、模型地址允许列表、私有 CA、备份及当前限制见 [账号与模型配置](docs/ACCOUNTS_AND_MODELS.md)。
+
+## Skill 组织
+
+`traceglass-analysis` 提供统一任务入口，`rea-analysis` 适配本项目的 REA 能力；专项方法、平台知识、引擎操作和报告技能按需加载。
+
+来源优先级为：旧库默认技能 → 项目内置技能 → `TRACEGLASS_SKILL_ROOTS` 显式指定的技能。新工作区安装当前版本；既有工作区的同名技能不会仅因重启而覆盖，需单独审核迁移。
+
+- [Skill 职责与整理说明](docs/SKILL_ORGANIZATION.md)
+- [任务路由与技能组合](src/traceglass/resources/skills/traceglass-analysis/references/task-routing.md)
+- [工具目录](docs/TOOL_CATALOG.md)
+
+## 项目结构
 
 ```text
 src/traceglass/
-  api/               # Native service composition and product workspace routes
-  config.py          # Deployment settings, Skill paths, native MCP records
-  agents.py          # Analyst prompt and native subagent templates
-  delegation.py      # Todo prerequisite and team-size policy; no scheduler
-  closeout.py        # Last-step model summary and native worker reporting
-  workspaces/        # Workspace catalog, sample files and native path adapters
-  integrations/      # Legacy MCP bridge and pinned AgentScope compatibility
-  tools/             # Reverse-analysis FunctionTools
-  resources/skills/  # Packaged analysis Skill
-  domain/            # Evidence/finding/artifact records, no execution state
-web/src/features/
-  execution/         # Native event projection, SSE, session timeline
-  workspaces/        # Workspace navigation, sample upload, files and chat input
+  api/                # FastAPI 路由及原生服务组合
+  accounts/           # 账号认证、个人模型及凭据加密
+  agents.py           # 主分析 Agent 和成员模板
+  workspaces/         # 工作区、样本文件和路径映射
+  integrations/       # REA、旧工具桥接、工具发现及 Skill 管理
+  tools/              # 分析、任务、证据及复核工具
+  evidence/           # 证据归档与引用查询
+  windows/            # Windows Guest Operations 与调试适配
+  evaluation/         # 回放、静态分析和产品编排评测
+  resources/skills/   # 内置 Skill、参考资料及脚本
+web/                  # React 工作台
+tests/                # 单元、契约与集成测试
+scripts/              # 镜像构建、检查及维护工具
+config/               # 可提交的配置示例
+docs/                 # 部署、能力边界及设计文档
+evals/                # 评测用例和静态测试夹具源码
 ```
 
-Evidence domain records are validation contracts; a database-backed evidence
-review/report-versioning product has not been implemented yet.
-
-## Skills and MCP
-
-See [SKILLS_AND_TOOLS.md](docs/SKILLS_AND_TOOLS.md). For example, from this
-project directory, reuse the old project's Skill packages without modifying it:
+## 验证与评测
 
 ```sh
-export TRACEGLASS_SKILL_ROOTS='../reverse/skills'
-export TRACEGLASS_MCP_CONFIG='/absolute/path/to/mcp.json'
-```
-
-Loading a Skill does not install external binaries that the Skill merely
-describes. The legacy integration does provide the old reverse domain tools and
-Skill reference resources through the workspace MCP client; external backends
-such as IDA still need their own service. The old `re_agents` factory and
-execution engine are not imported.
-
-## Verification
-
-```sh
-python -m pytest
-python -m compileall -q src
+.venv/bin/python -m pytest
+.venv/bin/python -m compileall -q src
 cd web
 npm test
 npm run build
 ```
 
-Integration tests run the real AgentScope service, Task tools, domain tools and
-Team workers against a scripted provider transport. They check execution and
-persistence, including child history. They do not prove external LLM availability
-or acceptance on real reverse-engineering samples.
+自动化测试覆盖原生执行、账号与证据隔离、工具发现、Skill 路由、Windows 工具契约等。脚本化模型和离线适配测试不能替代实际模型、Docker 引擎或 Windows 样本调试验收。
 
-## Deployment limits
+评测入口、静态夹具构建和结果边界见 [评测说明](docs/EVALUATION.md)，分析质量约束见 [分析质量](docs/ANALYSIS_QUALITY.md)。
 
-This revision is a **local, single-process development workbench**, not a
-completed multi-tenant production deployment. The native `X-User-ID` header
-is identity routing, not authentication. Do not expose this service publicly
-without an authenticated gateway and a suitable sandbox configuration.
+## 数据与部署边界
 
-New product workspaces adapt the native host-directory mapping for both local
-and Docker backends, so each workspace has its own files while team members
-share the leader's files. Legacy workspace IDs retain the original shared
-per-agent layout. Local directories do not isolate shell processes; use the
-Docker profile for analysis execution. Live bus state is process-local;
-deployment across workers requires the native Redis message bus and testing.
-Queued inbox messages and replay buffers do not survive a process restart.
-The wakeup compatibility adapter depends on AgentScope 2.0.6's queue format and
-task naming; rerun its regression tests before upgrading the framework.
-The delegation policy's lock is also process-local and must become shared for
-a multi-process service. The 8-worker limit is per team, not a global model
-request limit across all user sessions. Models cannot delete and recreate a
-team to reset the member budget.
-
-The integrated profile has passed a browser-driven upload, real model, Docker,
-reverse MCP, two-worker delegation and leader-review test. Optional IDA was
-offline during this test; static analysis continued and the UI showed that
-status. Product release still requires authentication and
-deployment setup, policy review for write/dynamic tools, and long-session UI
-and load testing.
-
-Analysis coverage, same-host IDA input staging and badcase regression commands: [Analysis quality](docs/ANALYSIS_QUALITY.md).
+- `.env`、本地 TLS 配置、运行数据、数据库、密钥、依赖目录及构建产物不提交到 Git；分析镜像和商业工具单独部署。
+- 备份需要同时保留数据库、工作区文件及数据目录中的 `credentials.key`。丢失主密钥会导致已有模型凭据无法解密。
+- 未开启认证的本地模式仅适合受信任的本机开发。账号模式仍需部署层容量、并发和访问控制，不应直接开放开发服务器。
+- 消息总线、团队锁及 REA 连接配额按进程维护，目前使用单进程部署；不能据此声明跨进程的全局并发控制。
+- Windows 共用来宾账号及系统状态，任务目录和租约不能代替强隔离。恶意样本需在专用、受控的分析环境中执行。
+- 证据引用检查验证记录和引用关系，分析结论仍需结合原始证据复核。工具失败、未覆盖路径和未完成操作应保留在报告中。

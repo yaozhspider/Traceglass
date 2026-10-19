@@ -1,88 +1,24 @@
 ---
 name: ghidra-reverse
-description: Use for free/open reverse engineering with Ghidra (headless or GUI), including decompile, cross-refs, and optional Ghidra MCP workflows when IDA is unavailable.
+description: Use when Ghidra-specific static analysis, headless scripting, decompilation or cross-reference verification is needed through an available REA provider or an explicitly configured Ghidra tool.
+metadata:
+  traceglass_revision: routing-v1
 ---
 
-# Ghidra Reverse Engineering
+# Ghidra 操作
 
-## ACTION REQUIRED（读完后立刻执行）
+任务方法使用 `reverse-engineering`；先按 `rea-analysis` 检查已注册的 Ghidra provider。
+本 Skill 补 Ghidra 调用与验证细节，不要求 IDA 先失败，不在分析任务中自举或安装 MCP。
 
-1. `NOW`: 读取 `../field-journal/precedent-reverse.md`
-2. `NOW`: 确认需要 **Ghidra**（无 IDA / 偏好开源 / 批量 headless）
-3. `NEXT`: 读 `../tool-index.md` 查 ghidra / ghidra-mcp 路径
-4. `NEXT`: 缺工具 → bootstrap `ghidra-mcp`（若 manifest 支持）或按手动步骤装 Ghidra
-5. `ACT`: 导入样本 → 自动分析 → 导出关键函数反编译
+1. 核对样本哈希、`PrepareAnalysisInput` 返回的 `rea_file_path` 与自己的 `binary_session`。
+   引擎可用且目标未打开时 `open_binary(provider_id="ghidra")`，参数按实际 schema。
+2. 用可用的 overview、函数、字符串与交叉引用定位问题；确认基址、架构和分析状态。
+   相同会话已打开正确目标就复用，不反复导入。
+3. 结合伪代码与汇编检查分支、参数、调用关系与数据类型，不从命名推断行为。
+   缺函数或失败分支保留证据，必要时使用已配置的独立引擎交叉验证。
+4. 仅在任务明确需要脚本/headless 且存在已核实路径时执行对应静态工具；
+   不照搬旧端口、安装目录或 tool-index 的历史记录。参考命令不是部署事实。
+5. 原始输出与位置按公共证据契约归档；结束原生会话时释放自己的目标。
+   动态调试另走 `sandbox-dynamic-debugging`。
 
-## 适用场景
-
-- 无 IDA 许可证时的主逆向入口
-- 批量 headless 分析 / CI 中反编译
-- Ghidra 脚本（Java/Python Jython/PyGhidra）自动化
-- 与 `binary-diff` / `patch-diff-exploit` 的 ghidriff 联动
-
-## 与 IDA 分工
-
-| 需求 | 优先 |
-|------|------|
-| 已有 IDA MCP 深挖 | `ida-reverse/` |
-| 开源 / 批量 / 教学 | **本 skill** |
-| 仅 CLI 快速侦察 | `radare2/` |
-
-## 工作流
-
-### 1. 项目与自动分析
-
-```text
-□ 新建 Project → Import 文件 → Analyze（默认分析器）
-□ 记录语言/编译器识别结果与基址
-□ 标记入口、导出表、字符串 xref
-```
-
-### 2. 关键函数
-
-```text
-□ 从字符串 / 导入 API 反查
-□ Decompile 窗口还原算法
-□ 重命名函数/变量；写 Plate comment
-□ 需要动态时交接 Frida/GDB（reverse-engineering 动态章）
-```
-
-### 3. Headless（批量）
-
-```bash
-# 示例：analyzeHeadless 路径因安装而异，MUST 从 tool-index 取
-analyzeHeadless /path/to/project Proj -import sample.bin -postScript ExportDecomp.py
-```
-
-### 4. MCP（若已配置）
-
-```text
-□ 确认 ghidra MCP 端口（常见 8765，以 tool-index 为准）
-□ 用 MCP 工具拉反编译 / xrefs，禁止猜端口
-```
-
-## 工具链
-
-| 工具 | 用途 | 自举 |
-|------|------|------|
-| Ghidra | 反编译主工具 | 手动 release / 包管理器 |
-| ghidra-mcp | AI 桥 | bootstrap 能力名 `ghidra-mcp` |
-| ghidriff | 补丁差分 | 见 `patch-diff-exploit` |
-
-## 参考
-
-- `references/ghidra-cheatsheet.md`
-- `../ida-reverse/` `../radare2/` `../binary-diff/`
-
-## 路由上下文
-
-**上游**: MASTER R22  
-**下游**: 动态验证 → Frida/GDB；利用 → `pwn-chain`  
-**同级**: `ida-reverse`（商业深挖）
-
-## 任务完成自检
-
-- [ ] 是否基于真实 Ghidra/tool-index 路径？
-- [ ] 是否标注函数地址与重命名？
-- [ ] 是否有可复现步骤？
-- [ ] Checklist / journal？
+需要 Ghidra API/快捷操作时按需读 [ghidra-cheatsheet.md](references/ghidra-cheatsheet.md)。

@@ -1,3 +1,4 @@
+import {authFetch, csrfHeaders, authenticationExpired} from '../account/transport';
 import type {ExecutionPermission, ModelConfig} from '../execution/nativeApi';
 import {fileQuery} from './workspaceData';
 import type {ReaEvidence, ReaEvidencePage} from '../execution/reaEvidence';
@@ -39,7 +40,7 @@ function errorMessage(body: unknown, status: number): string {
 }
 
 async function response(user: string, path: string, init: RequestInit = {}): Promise<Response> {
-  const result = await fetch(base + path, {...init, headers: {
+  const result = await authFetch(base + path, {...init, headers: {
     'X-User-ID': user, ...(init.body ? {'Content-Type': 'application/json'} : {}), ...init.headers,
   }});
   if (!result.ok) {
@@ -64,12 +65,14 @@ function upload(user: string, id: string, file: File, onProgress?: (percent: num
     const abort = () => xhr.abort();
     xhr.open('POST', base + resource(id) + '/samples');
     xhr.setRequestHeader('X-User-ID', user);
+    for (const [key,value] of Object.entries(csrfHeaders())) xhr.setRequestHeader(key,value);
     xhr.responseType = 'json';
     xhr.upload.onprogress = event => {
       if (event.lengthComputable) onProgress?.(Math.min(100, Math.round(event.loaded / event.total * 100)));
     };
     xhr.onload = () => {
       cleanup();
+      if (xhr.status === 401) authenticationExpired();
       if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response as WorkspaceSample);
       else reject(new Error(errorMessage(xhr.response, xhr.status)));
     };
@@ -97,6 +100,8 @@ export const workspaceApi = {
   createSession: (user: string, id: string, input: {name: string; sample_id?: string; chat_model_config?: ModelConfig | null; permission_mode?: ExecutionPermission}) =>
     json<{session_id: string; agent_id: string; workspace_id: string}>(user, resource(id) + '/sessions', {method: 'POST', body: JSON.stringify(input)}),
   upload,
+  deleteSample: (user: string, id: string, sampleId: string) =>
+    response(user, `${resource(id)}/samples/${encodeURIComponent(sampleId)}`, {method: 'DELETE'}).then(() => undefined),
   files: (user: string, id: string, path = '', signal?: AbortSignal) => json<WorkspaceDirectory>(user, `${resource(id)}/files?${fileQuery(path)}`, {signal}),
   preview: (user: string, id: string, path: string, signal?: AbortSignal) => json<WorkspacePreview>(user, `${resource(id)}/preview?${fileQuery(path)}`, {signal}),
   download: async (user: string, id: string, path: string, name: string) => {

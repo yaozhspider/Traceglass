@@ -1,0 +1,33 @@
+/* Account surfaces use the workbench's paper and green palette. */
+body:has(.login-page), body:has(.account-loading) { min-width:320px; background:#f7f7f3; }
+.account-controls { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.account-username { display:flex; gap:5px; align-items:center; max-width:130px; overflow:hidden; text-overflow:ellipsis; font-size:12px; color:#587366; }
+.login-page { min-height:100dvh; display:grid; grid-template-columns:1.2fr 1fr; align-items:center; gap:8vw; max-width:1240px; margin:auto; padding:60px; color:#273633; }
+.login-story h1 { color:#273633; font-size:clamp(36px,4vw,62px); font-weight:550; line-height:1.35; letter-spacing:-2px; margin:24px 0; }
+.login-story p,.login-card > p,.account-dialog > p { color:#73817b; line-height:1.7; }
+.login-story .eyebrow,.account-dialog .eyebrow { color:#4a7963; }
+.login-features { display:flex; gap:24px; margin-top:48px; font-size:13px; color:#456258; }
+.login-card { background:#fff; border:1px solid #dce3db; border-radius:18px; padding:36px; box-shadow:0 20px 80px #183a2b0c; }
+.login-card h2 { font-weight:550; margin-top:0; }
+.login-card fieldset,.account-dialog fieldset { border:0; padding:0; margin:0; display:grid; gap:12px; min-width:0; }
+.login-card label,.account-dialog label { display:grid; gap:6px; font-size:12px; color:#456258; }
+.login-card input,.account-dialog input,.account-dialog select { width:100%; min-width:0; border:1px solid #d6e0cf; background:#fff; color:#273633; border-radius:7px; padding:10px 12px; font:inherit; }
+.login-card input:focus,.account-dialog input:focus { outline:2px solid #438476; outline-offset:2px; }
+.login-card small,.account-dialog small { color:#73817b; font-size:11px; line-height:1.5; }
+.login-card .primary-button,.account-dialog .primary-button { justify-content:center; background:#2a665d; color:white; border-radius:7px; font-size:12px; }
+.login-card .primary-button { padding:12px; margin-top:6px; }
+.account-dialog .secondary-button { color:#456258; background:#f4f7f2; border-color:#d6e0cf; }
+.account-dialog .icon-button { color:#587366; }
+.login-switch { width:100%; margin-top:24px; background:none; color:#2a665d; border:0; cursor:pointer; }
+.account-error { color:#983a2d; line-height:1.6; padding:10px; background:#fff0ea; border-radius:6px; overflow-wrap:anywhere; }
+.account-notice { color:#275940; font-size:12px; line-height:1.6; background:#eaf4e9; padding:10px; border-radius:6px; }
+.account-loading { display:grid; gap:20px; place-content:center; min-height:100dvh; color:#456258; }
+.account-dialog { width:min(580px,94vw); max-height:92dvh; overflow:auto; background:#fafbf6; border:1px solid #d7e0d1; color:#273633; border-radius:14px; padding:22px; box-shadow:0 24px 90px #1e352a30; scrollbar-width:thin; }
+.account-dialog::backdrop { background:#183a2b55; backdrop-filter:blur(2px); }
+.account-dialog header { display:flex; justify-content:space-between; align-items:center; position:sticky; top:-22px; background:#fafbf6; z-index:1; padding:4px 0 8px; }
+.account-dialog h2 { margin:4px 0; font-size:21px; }
+.account-dialog > p { margin:6px 0 16px; font-size:12px; }
+.account-dialog footer { display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end; margin-top:16px; padding:10px 0 0; align-items:center; position:sticky; bottom:-22px; background:#fafbf6; }
+.account-dialog footer > span { width:100%; color:#73817b; font-size:10px; }
+.model-help { display:block; margin-top:10px; }
+@media (max-width:850px) { .login-page { grid-template-columns:1fr; padding:25px; max-width:540px; gap:20px; } .login-story h1 { color:#273633; font-size:32px; } .login-features { display:none; } .login-card { padding:24px; } .account-username { display:none; } .account-controls { gap:4px; } }

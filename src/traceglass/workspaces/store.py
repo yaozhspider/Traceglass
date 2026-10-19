@@ -9,6 +9,7 @@ from contextlib import contextmanager
 import json
 from pathlib import Path
 import sqlite3
+from collections.abc import Callable
 
 
 def timestamp() -> str:
@@ -88,6 +89,22 @@ class WorkspaceStore:
             db.execute("INSERT INTO samples VALUES (?, ?, ?, ?)",
                        (sample["sample_id"], user_id, workspace_id, json.dumps(sample, ensure_ascii=False)))
             db.execute("UPDATE workspaces SET updated_at=? WHERE user_id=? AND workspace_id=?", (timestamp(), user_id, workspace_id))
+
+    def remove_sample(self, user_id: str, workspace_id: str, sample_id: str,
+                      remove_bytes: Callable[[str], None]) -> None:
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT payload FROM samples WHERE user_id=? AND workspace_id=? AND sample_id=?",
+                (user_id, workspace_id, sample_id),
+            ).fetchone()
+            if row is None:
+                raise LookupError("Sample not found")
+            remove_bytes(json.loads(row["payload"])["sample_path"])
+            db.execute("DELETE FROM samples WHERE user_id=? AND workspace_id=? AND sample_id=?",
+                       (user_id, workspace_id, sample_id))
+            db.execute("UPDATE workspaces SET updated_at=? WHERE user_id=? AND workspace_id=?",
+                       (timestamp(), user_id, workspace_id))
 
     def bind_task(self, user_id: str, workspace_id: str, session_id: str, sample_id: str | None) -> None:
         with self.connect() as db:

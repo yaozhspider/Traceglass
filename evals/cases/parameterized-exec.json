@@ -1,0 +1,33 @@
+{
+  "id": "parameterized-exec",
+  "kind": "authored-vulnerability-contract",
+  "analysis_goal": "vulnerability",
+  "sample_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "task": "Evaluate the scoped vulnerability, controllability and exploitability. Distinguish confirmed static defects from demonstrated runtime effects. Target is an authorized synthetic fixture.",
+  "evidence": [
+    {
+      "id": "E1",
+      "text": "Reviewed full handler calls execve with fixed executable and separately allocated argv entry for user text. No shell parser is invoked; all error branches checked."
+    },
+    {
+      "id": "E2",
+      "text": "Scope: shell injection through this handler only, not executable semantics or other input vulnerabilities. No dynamic execution performed."
+    }
+  ],
+  "rubric": {
+    "allowed_verdicts": [
+      "hardened_in_scope"
+    ],
+    "required_evidence": [
+      "E1",
+      "E2"
+    ],
+    "required_vuln_classes": [
+      "none"
+    ],
+    "allowed_exploitability": [
+      "none"
+    ],
+    "requires_gaps": true
+  }
+}

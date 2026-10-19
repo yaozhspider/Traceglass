@@ -5,7 +5,7 @@
       "package": "reverse-engineering",
       "source": "/Users/yaozh/llms/reverse/skills/reverse-engineering",
       "files": {
-        "SKILL.md": "2cb64b23bbf3651b082560cb85789d926714c4799b1eaa7580ffc98cef30a4f5",
+        "SKILL.md": "98288a4da81b3016f499c002eb2018d40f349dbddf479fab5a165f10caa309a9",
         "anti-analysis.md": "373adf2216047ab9c25fbfa4ac807ec3883e7e211e1c8b5ccce3974439098f81",
         "awesome-re-resources.md": "58cc6e32781cc9ea8f8e499bf2dc78a4d91b1fd41e784dad0424dc4f2ace4826",
         "crypto-decode-tools.md": "e03aeade2b81f2afb2f0d2141f3c693f7f0acaf79c7f9e78180de37a9114ed6f",
@@ -32,13 +32,17 @@
         "tools-advanced.md": "848c172f222fec082214d26737238395d4831a1f0ea2d034fbb1cda2615d8645",
         "tools-dynamic.md": "c8b082d9be576e0811b2ef0bf192784ff2d04798cd0b8da437e019dbf8a45d04",
         "tools.md": "212701fca9bd636c8d07fdca6765f99138014d7d59b25abe3458739387193f60"
-      }
+      },
+      "adaptations": [
+        "Windows/Linux dynamic routing, reusable task authorization, evidence collection and explicit baseline restoration authorization added on 2026-10-16",
+        "routing-v1: unified task entry, format-specific REA routing, current tool schemas and shared evidence contract; upstream source unchanged"
+      ]
     },
     {
       "package": "dynamic-malware-analysis",
       "source": "/Users/yaozh/llms/reverse/skills/dynamic-malware-analysis",
       "files": {
-        "SKILL.md": "450839f6ef10f26ae7f104511f101a4ef8a16392da7481ad1417b8c6faaf83e0",
+        "SKILL.md": "ce4b7c1b7407920433c0e0d4ca27b31c859c20a8e38f432ab49a731cfaaeb102",
         "agents/openai.yaml": "c1e53f142c8b20f49d8daee830d389732443e03828c956bb0477fdcbfa700d97",
         "references/attribution-rules.md": "88d2e4014b1d31e019bf5f614cf62537cf421f637363771d5dcfecbe34beb1d7",
         "references/cape-report-map.md": "fcd406e5d81419b58c1c95f4970b26a8f2e98d585e1bccefe54983b2a0a98d22",
@@ -46,63 +50,227 @@
         "references/evidence-model.md": "18439c13873c69751dd9ed74c7b1b733adf20a4a0b72a8e5f0c69441aa060e3e",
         "references/report-template.md": "fe34571810df228c0f320d513636a71426221929d010607454b29507d9c2ff91",
         "scripts/dynamic_report.py": "515c15acc5f51737c97f1fa57ef65369475d51880e507ba937514ef4a2795072"
-      }
+      },
+      "adaptations": [
+        "routing-v1: unified task entry, format-specific REA routing, current tool schemas and shared evidence contract; upstream source unchanged"
+      ]
     },
     {
       "package": "malware-analysis",
       "source": "/Users/yaozh/llms/reverse/skills/malware-analysis",
       "files": {
-        "SKILL.md": "68e078c75b53753ca79035c6a93b4cf25692ea80ebe23f1d7a95e4ffd9575e1e",
+        "SKILL.md": "df44604710879be9f37ce72d49430e945f248efa5975c055641c0d1f1a6fd883",
         "references/anti-analysis-techniques.md": "4589bc802dc323d7fc29e47be23331337ae70563886e560985d7530120d68c61",
         "references/sandbox-orchestration.md": "679fe226a69e03633b33840dc0b035917c3a800b3b8282ec31c067ba124f658a",
         "references/yara-sigma-rules.md": "5369e6177e14518b8752696028fe869baa1b8ae96dbc7dc7d88b65a6ac4a1a76"
-      }
+      },
+      "adaptations": [
+        "Local DIE MCP discovery, activation, sample path and separate Windows route added on 2026-10-16",
+        "Windows/Linux dynamic routing, reusable task authorization, evidence collection and explicit baseline restoration authorization added on 2026-10-16",
+        "routing-v1: unified task entry, format-specific REA routing, current tool schemas and shared evidence contract; upstream source unchanged"
+      ]
     },
     {
       "package": "crypto-obfuscation-analysis",
       "source": "/Users/yaozh/llms/reverse/skills/crypto-obfuscation-analysis",
       "files": {
-        "SKILL.md": "0508ec2c0fb8b3696306912a797051ee5af8156f3c0b91930c76b9a3a66cf629",
+        "SKILL.md": "dfe0e7abdf1bf4fa8b96e4a9893340d123a25c875c5850b86bd8849af91bbee7",
         "agents/openai.yaml": "5867d72a0a8c9a9f71a77f12628841589aaff017bbe0d75b2b9a61b999c7e57e",
         "references/algorithm-fingerprints.md": "d45112d60fe31a14002632128b211fd5d4ae67ff73c8d002f0a281f0a1a8bf3c",
         "references/common-methods.md": "7b5de5f69178bffa956341c1e8485fe0c7f113ba790cfbbafb65c54b8badd5a6",
         "references/evidence-scoring.md": "dd786fa9d5fbfad96472f252cc820f7a9cbf799e576b98a2e9e28b16989d98d3",
         "references/obfuscation-patterns.md": "9c832f6cbfbe1d41ae55f63a650264ad010c7026d1f1242279e68ae6199a1296",
         "references/semantic-ir-schema.md": "8ffaf8886aa3ca610f3299ffddde5f95d2f71bcf28e65faa4d3a3ec6e9aee487"
-      }
+      },
+      "adaptations": [
+        "Windows/Linux dynamic routing, reusable task authorization, evidence collection and explicit baseline restoration authorization added on 2026-10-16"
+      ]
     },
     {
       "package": "sandbox-dynamic-debugging",
       "source": "/Users/yaozh/llms/reverse/skills/sandbox-dynamic-debugging",
       "files": {
-        "SKILL.md": "9c43fa13b471285c6ec1721f37ba1fe5afe1bba5b9b35eb0fd39d654f6ecca26",
-        "references/crypto-experiment-playbook.md": "adc305b68f7ded977c079905389a3db80d5abee79d58ed6dadcd472210b929f5"
-      }
+        "SKILL.md": "990257beacbe03d8f3b7e865d5ddff34b2eddc607384be9d0a80acb7fcb835d7",
+        "references/crypto-experiment-playbook.md": "adc305b68f7ded977c079905389a3db80d5abee79d58ed6dadcd472210b929f5",
+        "references/windows-debugging.md": "844d209a367eaea0969a3075be5346db20062696a949db8d9ed4d058f73c181e"
+      },
+      "adaptations": [
+        "Windows/Linux dynamic routing, reusable task authorization, evidence collection and explicit baseline restoration authorization added on 2026-10-16"
+      ]
     },
     {
       "package": "ghidra-reverse",
       "source": "/Users/yaozh/llms/reverse/skills/ghidra-reverse",
       "files": {
-        "SKILL.md": "f71acac4668b0320ce9f9768bb7cacc200b75140f1bab051982c8c5c3d3869b7",
+        "SKILL.md": "7e37864c1bdaf8bee9d91743c3e07b0367a8609a2c0e16b0ba994b4dffa0134b",
         "references/ghidra-cheatsheet.md": "bd6fb357f9441f3657dff868d9b9a58db7d9f47d7220e5f8839e4c67276cdd1a"
-      }
+      },
+      "adaptations": [
+        "routing-v1: unified task entry, format-specific REA routing, current tool schemas and shared evidence contract; upstream source unchanged"
+      ]
     },
     {
       "package": "key-function-analysis",
       "source": "/Users/yaozh/llms/reverse/skills/key-function-analysis",
       "files": {
-        "SKILL.md": "f1526cb42a37fddc2ceb76a7178216c957997c987400c03c510e86a61bf75655",
+        "SKILL.md": "203824fe776517441fee9b78b7367c53233340c04c3191429d91483cc8d92c5e",
         "agents/openai.yaml": "57c14d9dd431508e328998aff66b0ec3e5a1af981e36d50844c9f1ad9530c204",
         "references/deep-analysis-checklist.md": "da6dce63af80a4a08c9648cf025c031416e4c4a587fcb70a59898aa6102b5d92"
-      }
+      },
+      "adaptations": [
+        "routing-v1: unified task entry, format-specific REA routing, current tool schemas and shared evidence contract; upstream source unchanged"
+      ]
     },
     {
       "package": "protocol-reverse",
       "source": "/Users/yaozh/llms/reverse/skills/protocol-reverse",
       "files": {
-        "SKILL.md": "f8408273d7ba4177ed92f838940211d8ba2378a2c89d0efd2a8e33a35d1079da",
+        "SKILL.md": "30071ea8e2ae504ae156f5b8db9a1fe6b631e3e9608d7d817065bba2df08cbbc",
         "references/protocol-workflow.md": "f306d29c2121fbdad5ac12bd19c102f68337b4c0dda25daecc3c331abe63b2f6"
+      },
+      "adaptations": [
+        "routing-v1: unified task entry, format-specific REA routing, current tool schemas and shared evidence contract; upstream source unchanged"
+      ]
+    },
+    {
+      "package": "unpacking",
+      "source": "/Users/yaozh/.cursor/skills/unpacking",
+      "imported_on": "2026-10-14",
+      "adaptations": [
+        "Traceglass path, tool catalog and sandbox execution guidance in SKILL.md",
+        "NoVmp static devirtualization routing, offline usage and result validation added on 2026-10-15",
+        "Local DIE MCP discovery, activation, sample path and separate Windows route added on 2026-10-16",
+        "Windows/Linux dynamic routing, reusable task authorization, evidence collection and explicit baseline restoration authorization added on 2026-10-16"
+      ],
+      "files": {
+        "SKILL.md": "c564357abaec3c8a741838f671bd7f5237af40bba3eac1306409abb9e74fb5b5",
+        "references/bibliography.md": "40f645052135561fba2917c60f4cc68602f0496e9f8fb1904d4ad07c9470802a",
+        "references/methods.md": "44c66953b61d1406f8c298eefe90f030fe088e5cfe2886f7b3806b45dae9ec55",
+        "references/platforms.md": "b9e052d1f57708ea6847233b70d32ecb7a563047169984971f44e7ef6d62f1ba",
+        "references/sources/android-dotnet-bundles.md": "d34e3be91cebcefc21039990de68bbe499f89ead375909e86ddfda1e349e2085",
+        "references/sources/emulation-dbi.md": "4e07424f5f14695c46bb0c165479342011dccca117d30a9ba8046aec0442d985",
+        "references/sources/novmp.md": "91b8309baa76cfb701ab8f6980fbc8c85f4837f475f1beca71706a8f5af058d3",
+        "references/sources/pe-oep-dump-iat.md": "177c279b1152447ed1bda080ab093f708d4b412d0229af8fefceba59035459f2",
+        "references/sources/services-and-protectors.md": "17d26eb4a73e28229269bf5cce8fdcd59b212b9bf6f8c6666ca05da075c8fc93",
+        "references/sources/sok-packer-types.md": "82c7719d2a0b5e2ed93f38f8540cd43e03fde937780efb155c46e8ce4c3dbb2a",
+        "references/tools.md": "a78dc44f83b76adbd74131929329dca5abc03777d715e8fcc74b64917e698306"
+      },
+      "source_files": {
+        "SKILL.md": "1c1d3aaffe6cb1fba05ab565c94eaf7700a4754df9622c9b99c54ed9c467f7f3",
+        "references/bibliography.md": "8199376e3938d186fcca9901badb5a9cf14e382419dfc221228fe6adb9115c28",
+        "references/methods.md": "b36a3038482089332789783ccdcf73574a2e63fc5cc6f5c919ff3c4b48e2c8e7",
+        "references/platforms.md": "f528887292077e661049c610c9fe4c10c7daa020a48d4e5d403dfe7a70b31107",
+        "references/sources/android-dotnet-bundles.md": "d34e3be91cebcefc21039990de68bbe499f89ead375909e86ddfda1e349e2085",
+        "references/sources/emulation-dbi.md": "4e07424f5f14695c46bb0c165479342011dccca117d30a9ba8046aec0442d985",
+        "references/sources/pe-oep-dump-iat.md": "177c279b1152447ed1bda080ab093f708d4b412d0229af8fefceba59035459f2",
+        "references/sources/services-and-protectors.md": "efd035c3fb073e0f0091fde9da47b3880aef28a6e66f078e5fceae69772f3a1e",
+        "references/sources/sok-packer-types.md": "82c7719d2a0b5e2ed93f38f8540cd43e03fde937780efb155c46e8ce4c3dbb2a",
+        "references/tools.md": "7d7cc623973b7cc073d9f8b633ed5e7eba3d28126dec87a2d173944593eae398"
       }
+    },
+    {
+      "package": "vuln-discovery",
+      "source": "/Users/yaozh/.cursor/skills/vuln-discovery",
+      "imported_on": "2026-10-15",
+      "adaptations": [
+        "Traceglass tool discovery, evidence review labels and sandbox execution guidance in SKILL.md; offline references unchanged",
+        "routing-v1: unified task entry, format-specific REA routing, current tool schemas and shared evidence contract; upstream source unchanged"
+      ],
+      "source_files": {
+        "SKILL.md": "37e3d75ca1fd7c4f0078acf575ff5444e260b91bd9df905f25580b28c6e93825",
+        "references/bibliography.md": "796cd5757838e89f5c49243db26da7e1e1e695e65d03ff3752013f6143ec8227",
+        "references/methods.md": "18e176e2832b7a840e231b2ac41a31aa19c8ad5ad00cd229b51c8a2245f15d36",
+        "references/sources/bug-classes.md": "536a614d2c40d87bb47dc23e73b060cab102b7e6fcfa61faf6f310791e6f8fc4",
+        "references/sources/discovery-workflow.md": "48804b2b2e4b2c207d609f3de68e62c6bd20b40c0fee3d11b346e212c6e9d273",
+        "references/sources/fuzzing-sanitizers.md": "03fcd044864fdd9b24ec5cbc0f4619095a5a7fc343912491c737219f636b7f1f",
+        "references/sources/static-and-variants.md": "981e8432d9e7968d690b050a3d168b5c7d58db20fedd3e00d86b82b707785262",
+        "references/sources/surfaces.md": "0ebfbefeaec61e4017c51ac0a6139c8326e5781d5176df4d98bd584448a1ee0a",
+        "references/tools.md": "e7c44db79666a7b2e6d1f646ea0901108e7a91672f7c908c9db8d12c702a72fe"
+      },
+      "files": {
+        "SKILL.md": "0b01d6f7cf528569d9586b7f598b5fc4154e5498c66e766a49f9e2340a9c949d",
+        "references/bibliography.md": "796cd5757838e89f5c49243db26da7e1e1e695e65d03ff3752013f6143ec8227",
+        "references/methods.md": "18e176e2832b7a840e231b2ac41a31aa19c8ad5ad00cd229b51c8a2245f15d36",
+        "references/sources/bug-classes.md": "536a614d2c40d87bb47dc23e73b060cab102b7e6fcfa61faf6f310791e6f8fc4",
+        "references/sources/discovery-workflow.md": "48804b2b2e4b2c207d609f3de68e62c6bd20b40c0fee3d11b346e212c6e9d273",
+        "references/sources/fuzzing-sanitizers.md": "03fcd044864fdd9b24ec5cbc0f4619095a5a7fc343912491c737219f636b7f1f",
+        "references/sources/static-and-variants.md": "981e8432d9e7968d690b050a3d168b5c7d58db20fedd3e00d86b82b707785262",
+        "references/sources/surfaces.md": "0ebfbefeaec61e4017c51ac0a6139c8326e5781d5176df4d98bd584448a1ee0a",
+        "references/tools.md": "e7c44db79666a7b2e6d1f646ea0901108e7a91672f7c908c9db8d12c702a72fe"
+      }
+    },
+    {
+      "package": "js-reverse",
+      "source": "/Users/yaozh/llms/reverse/skills/js-reverse",
+      "imported_on": "2026-10-18",
+      "source_files": {
+        "SKILL.md": "db4944e2ddde344482a18cee5c0db2092cf4603eb984498ae3e045eea47a175b",
+        "references/ast-deobfuscation.md": "f17674b425049e38b11d50123793d0658602e9614cca7882fa6ca193f8090081",
+        "references/automation-entry.md": "74f04e1b434bb4dd716328db52825eef7bf14c4709965a42ca0a4b19338ea4e4",
+        "references/env-patching.md": "86d099755acaf104c9d83966cc11746b6e8378db66c75e546b5f106e6117afb5",
+        "references/fallbacks.md": "4a29d01fcc2c79b15df353b8f93ef9cd26d57a4dedff66d4170eeb23e0fa4696",
+        "references/instrumentation.md": "04306264d4403a7091f3c9910fdaf575557699496fe5bbde6c9ac96313116d61",
+        "references/local-rebuild.md": "64819623a0dad7104220cd7c71dd171cb6cc38a59d59b15974fc7df3c3bbc26f",
+        "references/mcp-task-template.md": "80ea1f87d1a9719d04d98fafcfe355e23984f49a32c88aadfea4b2ccdf6a0f00",
+        "references/node-env-rebuild.md": "68edef32e61396d6278bdde500c702b7627dd944b88985032c68fff844019027",
+        "references/output-contract.md": "318818bbde547fa2c91c621b7ec7d50b9f6b585953949ae6709d8da0693116e6",
+        "references/task-artifacts.md": "d798a89acb2526316a155918e4a1063d6b88993b7119329abaa3f8c7ced7ba39",
+        "references/task-input-template.md": "286631de3aa4a8767404a3231c633c756e08798084fa145e42d1630106a0dc03",
+        "references/tool-defaults.md": "bb8f97f71bad3bd6a10265ac846b2fed5fc7c28da60344ab565b9bd903474af3"
+      },
+      "files": {
+        "SKILL.md": "f58de14aa6b5a299c7eeb3c21887a2ff4647a873e2089ca60d2f2e3b10016e29",
+        "references/ast-deobfuscation.md": "f17674b425049e38b11d50123793d0658602e9614cca7882fa6ca193f8090081",
+        "references/automation-entry.md": "74f04e1b434bb4dd716328db52825eef7bf14c4709965a42ca0a4b19338ea4e4",
+        "references/env-patching.md": "86d099755acaf104c9d83966cc11746b6e8378db66c75e546b5f106e6117afb5",
+        "references/fallbacks.md": "4a29d01fcc2c79b15df353b8f93ef9cd26d57a4dedff66d4170eeb23e0fa4696",
+        "references/instrumentation.md": "04306264d4403a7091f3c9910fdaf575557699496fe5bbde6c9ac96313116d61",
+        "references/local-rebuild.md": "64819623a0dad7104220cd7c71dd171cb6cc38a59d59b15974fc7df3c3bbc26f",
+        "references/mcp-task-template.md": "80ea1f87d1a9719d04d98fafcfe355e23984f49a32c88aadfea4b2ccdf6a0f00",
+        "references/node-env-rebuild.md": "68edef32e61396d6278bdde500c702b7627dd944b88985032c68fff844019027",
+        "references/output-contract.md": "318818bbde547fa2c91c621b7ec7d50b9f6b585953949ae6709d8da0693116e6",
+        "references/task-artifacts.md": "d798a89acb2526316a155918e4a1063d6b88993b7119329abaa3f8c7ced7ba39",
+        "references/task-input-template.md": "286631de3aa4a8767404a3231c633c756e08798084fa145e42d1630106a0dc03",
+        "references/tool-defaults.md": "bb8f97f71bad3bd6a10265ac846b2fed5fc7c28da60344ab565b9bd903474af3"
+      },
+      "adaptations": [
+        "routing-v1: project-owned entry point uses format-specific REA discovery and shared evidence contract; offline references copied unchanged"
+      ]
+    },
+    {
+      "package": "browser-extension-reverse",
+      "source": "/Users/yaozh/llms/reverse/skills/browser-extension-reverse",
+      "imported_on": "2026-10-18",
+      "source_files": {
+        "SKILL.md": "908c0bbcd53cdda04bcfd49cc610d049fdf58f0d9c9b70b65415e1f6730bc565",
+        "references/extension-analysis.md": "de083cc52478d265cbc19462a67c17ae7932d561dce345158bc97eddc3c2b8b5"
+      },
+      "files": {
+        "SKILL.md": "a477b4ecbdc7b402750c01d3b8ee05019e478a1908134e4726433003a13691b9",
+        "references/extension-analysis.md": "de083cc52478d265cbc19462a67c17ae7932d561dce345158bc97eddc3c2b8b5"
+      },
+      "adaptations": [
+        "routing-v1: project-owned entry point uses format-specific REA discovery and shared evidence contract; offline references copied unchanged"
+      ]
+    },
+    {
+      "package": "docs-generator",
+      "source": "/Users/yaozh/llms/reverse/skills/docs-generator",
+      "imported_on": "2026-10-18",
+      "source_files": {
+        "SKILL.md": "a656c04cd23ff159f4470ea285be09ba3789c95f1e62043afce2228f369d2c77",
+        "references/security-report-templates.md": "2b4289efcd8c8fc333b4fb67c01639cab2c330c8caca1b63990814e70c358f7f",
+        "references/templates.md": "03cedfb2b2f63bc33e0b6547fa168c8ea99e19dce30404127c2e74e686d74a7f"
+      },
+      "files": {
+        "SKILL.md": "4f73e3a89087673b7eab2e5339abc9797424ee31da04cb5d0623b5f95049fa2a",
+        "references/security-report-templates.md": "2b4289efcd8c8fc333b4fb67c01639cab2c330c8caca1b63990814e70c358f7f",
+        "references/templates.md": "03cedfb2b2f63bc33e0b6547fa168c8ea99e19dce30404127c2e74e686d74a7f"
+      },
+      "adaptations": [
+        "routing-v1: project-owned entry point uses format-specific REA discovery and shared evidence contract; offline references copied unchanged"
+      ]
     }
-  ]
+  ],
+  "organization_revision": "routing-v1"
 }

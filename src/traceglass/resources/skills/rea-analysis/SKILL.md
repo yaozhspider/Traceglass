@@ -1,32 +1,57 @@
 ---
 name: rea-analysis
-description: Use when REA MCP tools are available for Ghidra or Hopper decompilation, function discovery, cross references, or independent static verification of a binary.
+description: Use when evaluating REA capabilities for a Traceglass task, choosing a format-specific REA entry point, activating deferred tools, or recovering a failed REA session. Covers native, managed, JavaScript, archives, firmware and runtime evidence.
+metadata:
+  traceglass_revision: routing-v1
 ---
 
-# REA 分析
+# REA 项目适配
 
-以本次会话实际发现的 `mcp__rea__*` 工具名称和 schema 为准。REA 在独立容器中运行，
-与原生工具共享 `/workspace` 文件视图，但工作区对 REA 只读，且默认无网络。
-主 Agent 和每个子 Agent 的当前二进制、分析会话与缓存彼此独立；不能使用其他成员的会话句柄。
+每项新任务先判断 REA 是否提供相关证据能力。工具以本次实际注册的 `mcp__rea__*`
+名称和 schema 为准；`mcp__reverse__*` 属于另一个服务。
+官方 `reverse-engineer-anything` 保留上游方法；复杂任务按需读取其格式参考或
+`ListReaWorkflows`/`GetReaWorkflow`。本项目由服务端管理部署，不在分析中运行 setup、doctor 或安装工具。
 
-1. 先调用 `binary_session` 确认自己的当前状态。首次使用、服务重启或会话失效后重新打开文件。
-2. 用 `open_binary` 指定 `/workspace/samples/...` 或工作区内已提取文件的绝对路径，
-   默认 `provider_id="ghidra"`；只有需要独立复核且可用时选择 Hopper。
-3. 用 `binary_overview` 检查格式、架构和分析状态，身份哈希用原有 reverse 工具核验。
-4. 根据具体证据问题查询函数、字符串和交叉引用；用 `search_procedures` 缩小范围，
-   再用 `procedure_pseudo_code` 获取关键函数伪代码。参数以当前 schema 为准，不猜地址或签名。
-5. 记录引擎、样本哈希、函数/地址、原始输出及反证，用原生 `Write` 或原有存证工具保存产物。
-   不让 REA 写入只读样本目录，也不把容器内部缓存路径作为用户可下载的报告路径。
-6. 当前二进制不用时调用 `close_binary` 释放分析资源；分析同一文件的成员也必须独立打开它。
+## 按目标选择入口
 
-Ghidra 和 Hopper 是静态反编译证据来源。Hopper 为演示版，工具存在不等于没有厂商限制。
-工具报错、缺少函数、引擎超时不证明样本不可分析或没有恶意行为。
-动态行为分析加载 `dynamic-malware-analysis`；受控执行验证加载 `sandbox-dynamic-debugging`；
-算法、字符串解密和控制流混淆加载 `crypto-obfuscation-analysis`。
-不要把成功反编译或算法命中写成已经运行验证。
+下表是检索线索；实际调用前确认工具已注册、已激活及前置条件。
 
-## 按需启用工具
+| 目标/证据问题 | 检索入口 | 会话要求 |
+| --- | --- | --- |
+| 原生 EXE、DLL、ELF、Mach-O | `binary_session`、`open_binary`、`analyze_function` | 首次或目标变化才打开；复用匹配目标 |
+| 提取后的 JS、浏览器扩展、Electron 源码树 | `analyze_javascript_application` | 显式目录路径；不先打开原生引擎 |
+| 压缩 JS 恢复与静态数据流 | `recover_javascript_sources`、`trace_javascript_semantics`、`trace_application_feature` | 依实际 schema 提供源码、图或同连接证据；核实输出目录和工具依赖 |
+| ZIP/APK/IPA/MSIX 等包体清单 | `open_binary`、`inspect_artifact` | 归档会话；不能把清单当代码语义分析 |
+| Android 代码 | `inspect_android_package` | 显式包路径；核实 JADX/Java 等依赖 |
+| .NET 托管代码 | `inspect_managed_artifact` | 显式制品路径；NativeAOT 改走原生路线 |
+| 固件布局 | `inspect_firmware_regions`、`extract_firmware` | 核实 provider、提取目录是否可写；只读部署不强行提取 |
+| 已有浏览器或 Node/Electron 运行时 | `list_browser_targets`、`list_javascript_runtime_targets`、`observe_javascript_runtime` | 需要实际可达端点和匹配目标；容器 loopback 不是宿主机 loopback |
+| 授权的浏览器验证 | `capture_browser_scenario` | 核实隔离环境、浏览器/端点和动作范围；REA 不自带安全沙箱 |
+| 完整源码阅读、文档排版、哈希、已有 CAPE/DDAN 报告 | 通常使用工作区、reverse 或报告解析器 | 记录不适用理由即可，不启动原生引擎 |
 
-常用二进制工具默认可用，其余使用 AgentScope 原生 `reset_tools` 启用对应 `rea_*` 组。
-该调用替换全部分组选择：只保留本步骤需要的组，完成后关闭，避免大型重建工具的定义占满上下文。
-工具是否可用以当前 schema 和调用结果为准；不要一次启用所有组。
+REA 在独立容器运行，`/workspace` 只读，默认无网络。工具出现在目录中不代表其
+写入、浏览器连接或执行前提在这个部署中可满足；不可用时保留真实原因并继续可行路线。
+
+## 发现到调用
+
+`SearchAnalysisTools(query="工具名或短关键词")` → 若未激活则按结果 `reset_tools`
+→ 等待成功并读取实际 schema → 补齐参数 → 调用目标工具 → 检查原始返回。
+保留仍需的组，`reset_tools` 会替换全部可选组。一次宽泛检索不足时换精确名称或翻页。
+搜到工具后明确选用、前置条件不足或不适用，不能直接用“没工具”跳过。
+
+区分四种状态：已注册定义、已激活 schema、已连接服务、当前操作实际可用。
+`deferred` 表示首次实际使用才连接；搜索和激活不启动分析，也不证明 provider 已就绪。
+`tool_group_inactive` 按返回参数激活；不存在的工具重新发现；provider/路径/资源错误
+保留证据后选择替代入口，不原样反复重试。避免用 Bash/Python 重写已有合适的语义工具。
+
+## 原生引擎与证据
+
+原生路线用 `PrepareAnalysisInput` 返回的 `rea_file_path`，通过 `binary_session` 核对可用引擎。
+首次/会话失效用 `open_binary`，`provider_id` 以支持情况选择。Ghidra 可用
+`binary_overview`；其他 provider 不一定实现它，直接用实际可用的函数/引用工具。
+每个 Agent 独立连接和句柄，归档 ID 不能当引擎句柄；完成原生分析后可 `close_binary`。
+
+保存原始输出、样本/成员哈希、证据 ID、位置与覆盖缺口，遵循 `traceglass-analysis`
+的证据契约。静态图和成功反编译不等于已观察执行。
+运行未知样本、调试或实验前读取 `sandbox-dynamic-debugging`；已有沙箱报告改用
+`dynamic-malware-analysis`，不会因需要动态证据就重新运行样本。

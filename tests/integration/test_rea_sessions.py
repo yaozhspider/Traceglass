@@ -86,6 +86,14 @@ def test_rea_tools_and_analysis_skills_reach_native_leader_and_worker(tmp_path, 
         results = [b for m in messages for b in m.content if isinstance(b, ToolResultBlock)]
         schemas = {t['function']['name']: t for t in tools}
         if not results:
+            assert 'SearchReaTools' in schemas
+            assert '二进制语义分析优先使用 REA' in str(messages)
+            return ChatResponse(content=[ToolCallBlock(id='discover', name='SearchReaTools',
+                input='{"query":"state_probe"}')], is_last=True)
+        discovery = json.loads(results[0].output[0].text)
+        assert discovery['matches'][0]['reset_tools'] == {'rea_native': True}
+        results = results[1:]
+        if not results:
             assert 'mcp__rea__state_probe' not in schemas
             assert 'rea_native' in schemas['reset_tools']['function']['parameters']['properties']
             return ChatResponse(content=[ToolCallBlock(id='activate', name='reset_tools',
@@ -111,6 +119,11 @@ def test_rea_tools_and_analysis_skills_reach_native_leader_and_worker(tmp_path, 
     monkeypatch.setattr(OpenAIChatModel, '_call_api', provider)
 
     async def run():
+        discovery_pool = ReaSessions(tmp_path)
+        try:
+            await discovery_pool.refresh_schema(tmp_path)
+        finally:
+            await discovery_pool.close()
         app = create_app(settings=Settings(data_dir=tmp_path/'data', rea_kit=tmp_path,
                                            model_name='fixture', api_key='fixture'))
         async with app.router.lifespan_context(app):
@@ -136,9 +149,11 @@ def test_rea_tools_and_analysis_skills_reach_native_leader_and_worker(tmp_path, 
                 await storage.upsert_session('local', aid, saved.config, session_id=sid, state=saved.state)
                 await app.state.chat_service.run('local', sid, aid,
                     Msg(name='user', role='user', content=[TextBlock(text='Probe REA')]))
+                assert app.state.rea_sessions.status('test-workspace')[0]['active_connections'] == 0
                 messages, _ = await storage.list_messages('local', sid, limit=20)
                 outputs = [b for m in messages for b in m.content if isinstance(b, ToolResultBlock)]
-                assert len(outputs) == 6 and all(b.state == 'success' for b in outputs), outputs
+                assert len(outputs) == 7 and all(b.state == 'success' for b in outputs), outputs
+                outputs = outputs[1:]
                 assert outputs[1].output[0].text == '1'
                 receipt = outputs[4].metadata['traceglass_archive']
                 assert receipt['archive_status'] == 'saved'
@@ -149,5 +164,6 @@ def test_rea_tools_and_analysis_skills_reach_native_leader_and_worker(tmp_path, 
                 workspace = await app.state.workspace_manager.get_workspace('local', aid, sid, 'test-workspace')
                 names = {s.name for s in await workspace.list_skills()}
                 assert {'dynamic-malware-analysis','malware-analysis','crypto-obfuscation-analysis',
-                        'rea-analysis','reverse-engineer-anything'} <= names
+                        'rea-analysis','reverse-engineer-anything','vuln-discovery',
+                        'vulnerability-hunting'} <= names
     asyncio.run(run())

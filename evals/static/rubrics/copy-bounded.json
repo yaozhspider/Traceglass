@@ -1,0 +1,26 @@
+{
+  "allowed_verdicts": [
+    "hardened_in_scope"
+  ],
+  "allowed_exploitability": [
+    "none"
+  ],
+  "required_vuln_classes": [
+    "none"
+  ],
+  "requires_gaps": true,
+  "required_facts": [
+    {
+      "category": "entry",
+      "pattern": "handle_request|request.*length"
+    },
+    {
+      "category": "sink",
+      "pattern": "memcpy"
+    },
+    {
+      "category": "constraint",
+      "pattern": "32.*(?:reject|check|bound)|(?:reject|check|bound).*32"
+    }
+  ]
+}

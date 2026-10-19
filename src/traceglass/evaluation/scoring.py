@@ -1,10 +1,18 @@
 """Deterministic rubric checks; semantic correctness still requires review."""
 from typing import Literal
+import re
 from pydantic import BaseModel, Field, create_model
+from traceglass.analysis_contract import Verdict, VulnerabilityClass, Exploitability
+
+
+class Fact(BaseModel):
+    category: Literal['entry', 'sink', 'constraint', 'constant', 'capability']
+    statement: str
+    evidence_refs: list[str]
 
 
 class Assessment(BaseModel):
-    verdict: Literal['unknown', 'suspicious', 'remote_execution', 'benign_in_scope']
+    verdict: Verdict
     evidence_refs: list[str] = Field(description='Exact supplied evidence IDs, or real tool IDs/addresses for binary runs.')
     dataflow: str = Field(description='Connected input-to-operation chain, or specific missing edges.')
     authorization: str
@@ -12,6 +20,10 @@ class Assessment(BaseModel):
     gaps: list[str]
     next_steps: list[str]
     explanation: str
+    vuln_classes: list[VulnerabilityClass] = Field(default_factory=list)
+    exploitability: Exploitability = 'unknown'
+    facts: list[Fact] = Field(default_factory=list,
+        description='Specific observed entry/sink/constraint/constant/capability facts with original evidence IDs.')
 
 
 def replay_schema(case: dict):
@@ -37,8 +49,49 @@ def score(case: dict, assessment: dict) -> dict:
         failures.append('missing_coverage_gaps')
     if rubric.get('requires_next_steps') and not result.next_steps:
         failures.append('missing_next_steps')
+    if 'allowed_exploitability' in rubric and result.exploitability not in rubric['allowed_exploitability']:
+        failures.append('unsupported_exploitability')
+    if not set(rubric.get('required_vuln_classes', [])) <= set(result.vuln_classes):
+        failures.append('missing_vulnerability_class')
     for field in ('dataflow','authorization','privilege','explanation'):
         if not getattr(result,field).strip():
             failures.append('missing_'+field)
     return {'passed':not failures, 'failures':failures,
             'scoring_scope':'rubric_structure_and_labels; manually review semantics and evidence correspondence'}
+
+
+def score_binary(case, assessment, verified_evidence_ids):
+    """Independent labels/patterns plus original citations; semantics need human review."""
+    output = Assessment.model_validate(assessment)
+    rubric = case['rubric']
+    all_refs = set(output.evidence_refs) | {ref for f in output.facts for ref in f.evidence_refs}
+    unsupported = all_refs - set(verified_evidence_ids)
+    failures = []
+    if output.verdict not in rubric['allowed_verdicts']:
+        failures.append('wrong_verdict')
+    if 'allowed_exploitability' in rubric and output.exploitability not in rubric['allowed_exploitability']:
+        failures.append('unsupported_exploitability')
+    if not set(rubric.get('required_vuln_classes', [])) <= set(output.vuln_classes):
+        failures.append('missing_vulnerability_class')
+    if rubric.get('requires_gaps') and not output.gaps:
+        failures.append('missing_coverage_gaps')
+    if rubric.get('requires_next_steps') and not output.next_steps:
+        failures.append('missing_next_steps')
+    for field in ('dataflow', 'authorization', 'privilege', 'explanation'):
+        if not getattr(output, field).strip():
+            failures.append('missing_' + field)
+    if not all_refs or unsupported:
+        failures.append('missing_or_unsupported_citations')
+    matched = []
+    for expected in rubric.get('required_facts', []):
+        matched.append(any(f.category == expected['category'] and f.evidence_refs and
+            set(f.evidence_refs) <= set(verified_evidence_ids) and
+            re.search(expected['pattern'], f.statement, flags=re.IGNORECASE) for f in output.facts))
+    if not all(matched):
+        failures.append('missing_key_facts')
+    return dict(passed=not failures, failures=failures,
+        key_fact_recall=sum(matched)/len(matched) if matched else None,
+        unsupported_citation_count=len(unsupported),
+        unsupported_citation_rate=len(unsupported)/len(all_refs) if all_refs else None,
+        unsupported_assertion_rate=None,
+        scoring_scope='independent_labels_fact_patterns_and_verified_origins; semantic correspondence requires review')

@@ -1,3 +1,4 @@
+import {authFetch} from '../account/transport';
 import {parseFrames} from './native';
 import type {Message, NativeEvent} from './native';
 
@@ -28,7 +29,7 @@ export type SessionView = {
 const base = import.meta.env.VITE_TRACEGLASS_API ?? '/api';
 
 export async function request<T>(path: string, userId?: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(base + path, {...init, headers: {
+  const response = await authFetch(base + path, {...init, headers: {
     ...(init.body ? {'Content-Type': 'application/json'} : {}),
     ...(userId ? {'X-User-ID': userId} : {}), ...init.headers,
   }});
@@ -59,7 +60,7 @@ export async function readHistory(user: string, ref: SessionRef, signal: AbortSi
 }
 
 export async function streamSession(user: string, ref: SessionRef, signal: AbortSignal, receive: (event: NativeEvent) => void, connected: () => void): Promise<void> {
-  const response = await fetch(base + sessionPath(ref,'stream'), {headers: {'X-User-ID': user}, signal});
+  const response = await authFetch(base + sessionPath(ref,'stream'), {headers: {'X-User-ID': user}, signal});
   if (!response.ok || !response.body) throw new Error(`事件流连接失败：${response.status}`);
   connected();
   const reader = response.body.getReader();
