@@ -1,5 +1,7 @@
 # Workspace and file workflow
 
+> Historical feature design. Current implementation: [system design](../../DESIGN.md), [data model](../../design/DATA_MODEL.md), and [API and frontend](../../design/API_AND_FRONTEND.md).
+
 The user explicitly requested implementation using the original reverse product
 as the reference: workspaces, uploads, selecting existing samples, and files.
 This extends the current AgentScope workbench without replacing its runtime.
