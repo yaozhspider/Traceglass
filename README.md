@@ -1,4 +1,4 @@
-# Aicube-Traceglass
+# Traceglass
 
 Traceglass 是面向逆向工程与恶意软件分析的 AI 工作台。它将样本管理、模型对话、工具调用、团队协作和证据归档整合到同一个界面，帮助分析人员追踪结论及其依据。
 
@@ -35,8 +35,8 @@ Traceglass 是面向逆向工程与恶意软件分析的 AI 工作台。它将�
 ### 1. 获取项目并安装后端
 
 ```sh
-git clone git@gitlab.asiainfo-sec.com:LLMSP/aicube-traceglass.git
-cd aicube-traceglass
+git clone https://github.com/yaozhspider/Traceglass.git
+cd Traceglass
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -e '.[test]'
@@ -70,7 +70,7 @@ python -m uvicorn traceglass.api.app:create_app --factory --host 127.0.0.1 --por
 在另一个终端执行：
 
 ```sh
-cd aicube-traceglass/web
+cd Traceglass/web
 npm ci
 TRACEGLASS_API_TARGET=http://127.0.0.1:8000 npm run dev -- --host 127.0.0.1 --port 5177 --strictPort
 ```
